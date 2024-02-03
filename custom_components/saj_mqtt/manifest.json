@@ -2,6 +2,7 @@
   "domain": "saj_mqtt",
   "name": "SAJ MQTT",
   "version": "0.1",
+  "config_flow": true,
   "requirements": [
     "pymodbus==3.5.4"
   ],

@@ -1,0 +1,25 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "serial_number": "Serial number",
+          "scan_interval": "Realtime data scan interval (min 10)",
+          "enable_inverter_info": "Enable inverter info data",
+          "scan_interval_inverter_info": "Scan interval (0 = only at startup)",
+          "enable_battery_info": "Enable battery info data",
+          "scan_interval_battery_info": "Scan interval (0 = only at startup)",
+          "enable_battery_controller": "Enable battery controller data",
+          "scan_interval_battery_controller": "Scan interval (0 = only at startup)",
+          "enable_config": "Enable config data",
+          "scan_interval_config": "Scan interval (0 = only at startup)",
+          "enable_mqtt_debug": "Enable MQTT debugging"
+        },
+        "title": "Set up a new SAJ MQTT inverter"
+      }
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  }
+}

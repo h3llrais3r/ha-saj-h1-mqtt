@@ -8,16 +8,20 @@ import logging
 DOMAIN = "saj_mqtt"
 BRAND = "SAJ"
 MANUFACTURER = "SAJ Electric"
-MODEL = "H1 series"
+MODEL = "H1 series inverter"
 
 # Configuration constants
 CONF_SERIAL_NUMBER = "serial_number"
 CONF_SCAN_INTERVAL = "scan_interval"  # for realtime data
+CONF_ENABLE_INVERTER_INFO = "enable_inverter_info"
 CONF_SCAN_INTERVAL_INVERTER_INFO = "scan_interval_inverter_info"
+CONF_ENABLE_BATTERY_INFO = "enable_battery_info"
 CONF_SCAN_INTERVAL_BATTERY_INFO = "scan_interval_battery_info"
+CONF_ENABLE_BATTERY_CONTROLLER = "enable_battery_controller"
 CONF_SCAN_INTERVAL_BATTERY_CONTROLLER = "scan_interval_battery_controller"
+CONF_ENABLE_CONFIG = "enable_config"
 CONF_SCAN_INTERVAL_CONFIG = "scan_interval_config"
-CONF_DEBUG_MQTT = "debug_mqtt"
+CONF_ENABLE_MQTT_DEBUG = "enable_mqtt_debug"
 
 # Data constants
 DATA_CONFIG = "config"

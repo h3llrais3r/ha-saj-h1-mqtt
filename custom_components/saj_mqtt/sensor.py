@@ -8,6 +8,7 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     PERCENTAGE,
     UnitOfApparentPower,
@@ -21,13 +22,11 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     BRAND,
     CONF_SERIAL_NUMBER,
-    DATA_CONFIG,
     DATA_COORDINATOR,
     DATA_COORDINATOR_BATTERY_CONTROLLER,
     DATA_COORDINATOR_BATTERY_INFO,
@@ -229,14 +228,11 @@ MAP_SAJ_CONFIG_DATA = (
 # fmt: on
 
 
-async def async_setup_platform(
-    hass: HomeAssistant,
-    config: ConfigType,
-    async_add_entities: AddEntitiesCallback,
-    discovery_info: DiscoveryInfoType | None = None,
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the sensor platform."""
-    serial_number: str = hass.data[DOMAIN][DATA_CONFIG][CONF_SERIAL_NUMBER]
+    """Set up the sensor entities based on a config entry."""
+    serial_number: str = entry.data[CONF_SERIAL_NUMBER]
 
     device_info: DeviceInfo = {
         "identifiers": {(DOMAIN, serial_number)},
@@ -250,19 +246,21 @@ async def async_setup_platform(
     sensors: list[SajMqttSensor] = []
 
     # Get coordinators (only realtime data is required, all others are optional)
-    coordinator: SajMqttRealtimeDataCoordinator = hass.data[DOMAIN][DATA_COORDINATOR]
+    coordinator: SajMqttRealtimeDataCoordinator = hass.data[DOMAIN][entry.entry_id][
+        DATA_COORDINATOR
+    ]
     coordinator_inverter_info: SajMqttInverterInfoDataCoordinator | None = hass.data[
         DOMAIN
-    ][DATA_COORDINATOR_INVERTER_INFO]
+    ][entry.entry_id][DATA_COORDINATOR_INVERTER_INFO]
     coordinator_battery_info: SajMqttBatteryInfoDataCoordinator | None = hass.data[
         DOMAIN
-    ][DATA_COORDINATOR_BATTERY_INFO]
+    ][entry.entry_id][DATA_COORDINATOR_BATTERY_INFO]
     coordinator_battery_controller: SajMqttBatteryControllerDataCoordinator | None = (
-        hass.data[DOMAIN][DATA_COORDINATOR_BATTERY_CONTROLLER]
+        hass.data[DOMAIN][entry.entry_id][DATA_COORDINATOR_BATTERY_CONTROLLER]
     )
     coordinator_config: SajMqttConfigDataCoordinator | None = hass.data[DOMAIN][
-        DATA_COORDINATOR_CONFIG
-    ]
+        entry.entry_id
+    ][DATA_COORDINATOR_CONFIG]
 
     # Realtime data sensors
     await coordinator.async_refresh()
