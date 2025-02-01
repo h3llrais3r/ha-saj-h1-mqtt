@@ -4,7 +4,7 @@
       "user": {
         "data": {
           "serial_number": "Serial number",
-          "scan_interval": "Realtime data scan interval"
+          "scan_interval_realtime_data": "Realtime data scan interval"
         },
         "title": "SAJ H1 inverter over MQTT"
       }
@@ -17,11 +17,11 @@
     "step": {
       "init": {
         "data": {
-          "scan_interval": "Realtime data scan interval",
-          "scan_interval_inverter_info": "Inverter info can interval (0=disabled)",
-          "scan_interval_battery_info": "Battery info scan interval (0=disabled)",
-          "scan_interval_battery_controller": "Battery controller scan interval (0=disabled)",
-          "scan_interval_config": "Config scan interval (0=disabled)",
+          "scan_interval_realtime_data": "Realtime data scan interval",
+          "scan_interval_inverter_data": "Inverter data can interval (0=disabled)",
+          "scan_interval_battery_data": "Battery data scan interval (0=disabled)",
+          "scan_interval_battery_controller_data": "Battery controller data scan interval (0=disabled)",
+          "scan_interval_config_data": "Config data scan interval (0=disabled)",
           "enable_mqtt_debug": "Enable MQTT debugging"
         },
         "title": "SAJ H1 inverter options"

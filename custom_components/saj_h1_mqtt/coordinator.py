@@ -64,11 +64,11 @@ class SajH1MqttInverterDataCoordinator(SajH1MqttDataCoordinator):
     """SAJ H1 MQTT inverter data coordinator."""
 
     async def _async_update_data(self) -> bytearray | None:
-        """Fetch the inverter info."""
+        """Fetch the inverter data."""
         reg_start = 0x8F00
         reg_count = 0x1E  # 30 registers
         LOGGER.debug(
-            f"Fetching inverter info at {log_hex(reg_start)}, length: {log_hex(reg_count)}"
+            f"Fetching inverter data at {log_hex(reg_start)}, length: {log_hex(reg_count)}"
         )
         return await self.mqtt_client.read_registers(reg_start, reg_count)
 
@@ -77,11 +77,11 @@ class SajH1MqttBatteryDataCoordinator(SajH1MqttDataCoordinator):
     """SAJ H1 MQTT battery data coordinator."""
 
     async def _async_update_data(self) -> bytearray | None:
-        """Fetch the battery info."""
+        """Fetch the battery bata."""
         reg_start = 0x8E00
         reg_count = 0x50  # 80 registers
         LOGGER.debug(
-            f"Fetching battery info at {log_hex(reg_start)}, length: {log_hex(reg_count)}"
+            f"Fetching battery data at {log_hex(reg_start)}, length: {log_hex(reg_count)}"
         )
         return await self.mqtt_client.read_registers(reg_start, reg_count)
 
