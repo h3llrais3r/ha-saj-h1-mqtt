@@ -24,7 +24,9 @@ from .const import (
     MODBUS_REG_APP_MODE,
     SERVICE_READ_REGISTER,
     SERVICE_REFRESH_BATTERY_CONTROLLER_DATA,
+    SERVICE_REFRESH_BATTERY_DATA,
     SERVICE_REFRESH_CONFIG_DATA,
+    SERVICE_REFRESH_INVERTER_DATA,
     SERVICE_SET_APP_MODE,
     SERVICE_WRITE_REGISTER,
     AppMode,
@@ -37,7 +39,7 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def read_register(call: ServiceCall) -> core.ServiceResponse:
         LOGGER.debug("Reading register")
-        entry = get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
         mqtt_client = entry.runtime_data.mqtt_client
         attr_register: str = call.data[ATTR_REGISTER]
         attr_register_size: str = call.data[ATTR_REGISTER_SIZE]
@@ -93,7 +95,7 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def write_register(call: ServiceCall) -> None:
         LOGGER.debug("Writing register")
-        entry = get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
         mqtt_client = entry.runtime_data.mqtt_client
         attr_register: str = call.data[ATTR_REGISTER]
         attr_register_value: str = call.data[ATTR_REGISTER_VALUE]
@@ -133,9 +135,73 @@ def async_register_services(hass: HomeAssistant) -> None:
             ),
         )
 
+    async def refresh_inverter_data(call: ServiceCall) -> None:
+        # Only refresh when coordinator is enabled
+        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        coordinator = entry.runtime_data.coordinator_inverter_data
+        if coordinator:
+            LOGGER.debug("Refreshing inverter data")
+            await coordinator.async_request_refresh()
+
+    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_INVERTER_DATA):
+        LOGGER.debug(f"Registering service: {SERVICE_REFRESH_INVERTER_DATA}")
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_REFRESH_INVERTER_DATA,
+            refresh_inverter_data,
+        )
+
+    async def refresh_battery_data(call: ServiceCall) -> None:
+        # Only refresh when coordinator is enabled
+        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        coordinator = entry.runtime_data.coordinator_battery_data
+        if coordinator:
+            LOGGER.debug("Refreshing battery data")
+            await coordinator.async_request_refresh()
+
+    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_BATTERY_DATA):
+        LOGGER.debug(f"Registering service: {SERVICE_REFRESH_BATTERY_DATA}")
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_REFRESH_BATTERY_DATA,
+            refresh_battery_data,
+        )
+
+    async def refresh_battery_controller_data(call: ServiceCall) -> None:
+        # Only refresh when coordinator is enabled
+        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        coordinator = entry.runtime_data.coordinator_battery_controller_data
+        if coordinator:
+            LOGGER.debug("Refreshing battery controller data")
+            await coordinator.async_request_refresh()
+
+    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_BATTERY_CONTROLLER_DATA):
+        LOGGER.debug(f"Registering service: {SERVICE_REFRESH_BATTERY_CONTROLLER_DATA}")
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_REFRESH_BATTERY_CONTROLLER_DATA,
+            refresh_battery_controller_data,
+        )
+
+    async def refresh_config_data(call: ServiceCall) -> None:
+        # Only refresh when coordinator is enabled
+        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        coordinator = entry.runtime_data.coordinator_config_data
+        if coordinator:
+            LOGGER.debug("Refreshing config data")
+            await coordinator.async_request_refresh()
+
+    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_CONFIG_DATA):
+        LOGGER.debug(f"Registering service: {SERVICE_REFRESH_CONFIG_DATA}")
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_REFRESH_CONFIG_DATA,
+            refresh_config_data,
+        )
+
     async def set_app_mode(call: ServiceCall) -> None:
         LOGGER.debug("Setting app mode")
-        entry = get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
         mqtt_client = entry.runtime_data.mqtt_client
         app_mode = AppMode[call.data[ATTR_APP_MODE]].value
         await mqtt_client.write_register(MODBUS_REG_APP_MODE, app_mode)
@@ -157,49 +223,19 @@ def async_register_services(hass: HomeAssistant) -> None:
             ),
         )
 
-    async def refresh_battery_controller_data(call: ServiceCall) -> None:
-        # Only refresh when coordinator is enabled
-        entry = get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
-        coordinator = entry.runtime_data.coordinator_battery_controller
-        if coordinator:
-            LOGGER.debug("Refreshing battery controller data")
-            await coordinator.async_request_refresh()
-
-    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_BATTERY_CONTROLLER_DATA):
-        LOGGER.debug(f"Registering service: {SERVICE_REFRESH_BATTERY_CONTROLLER_DATA}")
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_REFRESH_BATTERY_CONTROLLER_DATA,
-            refresh_battery_controller_data,
-        )
-
-    async def refresh_config_data(call: ServiceCall) -> None:
-        # Only refresh when coordinator is enabled
-        entry = get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
-        coordinator = entry.runtime_data.coordinator_config
-        if coordinator:
-            LOGGER.debug("Refreshing config data")
-            await coordinator.async_request_refresh()
-
-    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_CONFIG_DATA):
-        LOGGER.debug(f"Registering service: {SERVICE_REFRESH_CONFIG_DATA}")
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_REFRESH_CONFIG_DATA,
-            refresh_config_data,
-        )
-
 
 def async_remove_services(hass: HomeAssistant) -> None:
     # Remove all services
-    hass.services.async_remove(DOMAIN, SERVICE_SET_APP_MODE)
-    hass.services.async_remove(DOMAIN, SERVICE_WRITE_REGISTER)
     hass.services.async_remove(DOMAIN, SERVICE_READ_REGISTER)
-    hass.services.async_remove(DOMAIN, SERVICE_REFRESH_CONFIG_DATA)
+    hass.services.async_remove(DOMAIN, SERVICE_WRITE_REGISTER)
+    hass.services.async_remove(DOMAIN, SERVICE_REFRESH_INVERTER_DATA)
+    hass.services.async_remove(DOMAIN, SERVICE_REFRESH_BATTERY_DATA)
     hass.services.async_remove(DOMAIN, SERVICE_REFRESH_BATTERY_CONTROLLER_DATA)
+    hass.services.async_remove(DOMAIN, SERVICE_REFRESH_CONFIG_DATA)
+    hass.services.async_remove(DOMAIN, SERVICE_SET_APP_MODE)
 
 
-def get_config_entry(hass: HomeAssistant, entry_id: str) -> SajH1MqttConfigEntry:
+def _get_config_entry(hass: HomeAssistant, entry_id: str) -> SajH1MqttConfigEntry:
     """Return config entry or raise error if not found or not loaded."""
 
     if not (entry := hass.config_entries.async_get_entry(entry_id)):

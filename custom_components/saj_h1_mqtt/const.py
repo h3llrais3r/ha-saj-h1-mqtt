@@ -21,17 +21,21 @@ CONF_SCAN_INTERVAL_CONFIG_DATA = "scan_interval_config_data"
 CONF_ENABLE_MQTT_DEBUG = "enable_mqtt_debug"
 
 # Service constants
-SERVICE_SET_APP_MODE = "set_app_mode"
 SERVICE_READ_REGISTER = "read_register"
 SERVICE_WRITE_REGISTER = "write_register"
-SERVICE_REFRESH_CONFIG_DATA = "refresh_config_data"
+SERVICE_REFRESH_INVERTER_DATA = "refresh_inverter_data"
+SERVICE_REFRESH_BATTERY_DATA = "refresh_battery_data"
 SERVICE_REFRESH_BATTERY_CONTROLLER_DATA = "refresh_battery_controller_data"
+SERVICE_REFRESH_CONFIG_DATA = "refresh_config_data"
+SERVICE_SET_APP_MODE = "set_app_mode"
+
+# Attribute constants
 ATTR_CONFIG_ENTRY = "config_entry"
-ATTR_APP_MODE = "app_mode"
 ATTR_REGISTER = "register"
 ATTR_REGISTER_FORMAT = "register_format"
 ATTR_REGISTER_SIZE = "register_size"
 ATTR_REGISTER_VALUE = "register_value"
+ATTR_APP_MODE = "app_mode"
 
 # Modbus constants
 MODBUS_MAX_REGISTERS_PER_QUERY = (
