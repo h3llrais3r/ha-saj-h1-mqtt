@@ -9,8 +9,6 @@ from datetime import datetime
 from random import random
 from struct import pack, unpack_from
 
-from pymodbus.utilities import computeCRC
-
 from homeassistant.components import mqtt
 from homeassistant.components.mqtt import ReceiveMessage
 from homeassistant.core import HomeAssistant, callback
@@ -29,7 +27,7 @@ from .const import (
     MQTT_QOS,
     MQTT_RETAIN,
 )
-from .utils import debug, log_hex
+from .utils import computeCRC, debug, log_hex
 
 
 class SajH1MqttClient:
