@@ -52,6 +52,17 @@ CONFIG_SCHEMA = vol.Schema(
 
 OPTIONS_SCHEMA = vol.Schema(
     {
+        vol.Required(
+            CONF_SCAN_INTERVAL_REALTIME_DATA,
+            default=DEFAULT_SCAN_INTERVAL.seconds,
+        ): NumberSelector(
+            NumberSelectorConfig(
+                min=10,
+                step=1,
+                mode=NumberSelectorMode.BOX,
+                unit_of_measurement="seconds",
+            )
+        ),
         vol.Optional(
             CONF_SCAN_INTERVAL_INVERTER_DATA,
             default=0,
@@ -149,22 +160,8 @@ class OptionsFlowHandler(OptionsFlow):
             title = self.config_entry.data[CONF_SERIAL_NUMBER]
             return self.async_create_entry(title=title, data=user_input)
 
-        # Add config flow scan interval (and it's value) to the options flow
-        config_schema = vol.Schema(
-            {
-                vol.Required(
-                    CONF_SCAN_INTERVAL_REALTIME_DATA,
-                    default=self.config_entry.options.get(
-                        CONF_SCAN_INTERVAL_REALTIME_DATA, DEFAULT_SCAN_INTERVAL
-                    ),
-                ): NumberSelector(
-                    NumberSelectorConfig(
-                        min=10,
-                        step=1,
-                        mode=NumberSelectorMode.BOX,
-                        unit_of_measurement="seconds",
-                    )
-                )
-            }
-        ).extend(OPTIONS_SCHEMA.schema)
-        return self.async_show_form(step_id="init", data_schema=config_schema)
+        # Copy existing config_entry options into the options schema
+        options_schema = self.add_suggested_values_to_schema(
+            OPTIONS_SCHEMA, self.config_entry.options
+        )
+        return self.async_show_form(step_id="init", data_schema=options_schema)
