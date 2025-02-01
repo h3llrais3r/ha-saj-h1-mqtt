@@ -1,22 +1,11 @@
 {
-  "domain": "saj_mqtt",
-  "name": "SAJ MQTT",
+  "domain": "saj_h1_mqtt",
+  "name": "SAJ H1 inverter over MQTT",
   "version": "0.1",
+  "codeowners": ["@paolosabatino", "@h3llrais3r"],
   "config_flow": true,
-  "requirements": [
-    "pymodbus==3.5.4"
-  ],
-  "dependencies": [
-    "mqtt"
-  ],
-  "issue_tracker": "",
-  "documentation": "",
-  "codeowners": [
-    "@paolosabatino",
-    "@h3llrais3r"
-  ],
+  "dependencies": ["mqtt"],
   "iot_class": "local_polling",
-  "loggers": [
-    "saj_mqtt"
-  ]
+  "loggers": ["saj_h1_mqtt"],
+  "requirements": ["pymodbus==3.5.4"]
 }

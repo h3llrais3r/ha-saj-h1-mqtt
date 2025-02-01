@@ -1,4 +1,5 @@
-"""Support for SAJ MQTT sensors."""
+"""Sensors for the SAJ H1 MQTT integration."""
+
 from __future__ import annotations
 
 from struct import unpack_from
@@ -8,7 +9,6 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     PERCENTAGE,
     UnitOfApparentPower,
@@ -27,11 +27,6 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     BRAND,
     CONF_SERIAL_NUMBER,
-    DATA_COORDINATOR,
-    DATA_COORDINATOR_BATTERY_CONTROLLER,
-    DATA_COORDINATOR_BATTERY_INFO,
-    DATA_COORDINATOR_CONFIG,
-    DATA_COORDINATOR_INVERTER_INFO,
     DOMAIN,
     LOGGER,
     MANUFACTURER,
@@ -39,14 +34,8 @@ from .const import (
     AppMode,
     WorkingMode,
 )
-from .coordinator import (
-    SajMqttBatteryControllerDataCoordinator,
-    SajMqttBatteryInfoDataCoordinator,
-    SajMqttConfigDataCoordinator,
-    SajMqttDataCoordinator,
-    SajMqttInverterInfoDataCoordinator,
-    SajMqttRealtimeDataCoordinator,
-)
+from .coordinator import SajH1MqttDataCoordinator
+from .types import SajH1MqttConfigEntry
 
 # fmt: off
 
@@ -121,8 +110,8 @@ MAP_SAJ_REALTIME_DATA = (
     ("summary_smart_meter_load_power_2", 0x15a, ">h", 1.0, UnitOfPower.WATT, SensorDeviceClass.POWER, SensorStateClass.MEASUREMENT, True)
 )
 
-# realtime energy statistics packet fields
-MAP_SAJ_REALTIME_ENERGY_STATS = (
+# realtime data energy statistics packet fields
+MAP_SAJ_REALTIME_DATA_ENERGY_STATS = (
     ('energy_photovoltaic', 0x17e, ">I", 0.01, UnitOfEnergy.KILO_WATT_HOUR, SensorDeviceClass.ENERGY, SensorStateClass.TOTAL_INCREASING, True),
     ('energy_battery_charged', 0x18e, ">I", 0.01, UnitOfEnergy.KILO_WATT_HOUR, SensorDeviceClass.ENERGY, SensorStateClass.TOTAL_INCREASING, True),
     ('energy_battery_discharged', 0x19e, ">I", 0.01, UnitOfEnergy.KILO_WATT_HOUR, SensorDeviceClass.ENERGY, SensorStateClass.TOTAL_INCREASING, True),
@@ -132,8 +121,8 @@ MAP_SAJ_REALTIME_ENERGY_STATS = (
     ('energy_grid_imported', 0x1ee, ">I", 0.01, UnitOfEnergy.KILO_WATT_HOUR, SensorDeviceClass.ENERGY, SensorStateClass.TOTAL_INCREASING, True)
 )
 
-# inverter info packet fields
-MAP_SAJ_INVERTER_INFO = (
+# inverter data packet fields
+MAP_SAJ_INVERTER_DATA = (
     ("inverter_type", 0, ">H", None, None, None, None, False),
     ("inverter_sub_type", 2, ">H", None, None, None, None, False),
     ("inverter_comm_pro_version", 4, ">H", 0.001, None, None, None, False),
@@ -148,8 +137,8 @@ MAP_SAJ_INVERTER_INFO = (
     ("inverter_battery_numbers", 58, ">H", None, None, None, None, False), # always 0
 )
 
-# battery info packet fields
-MAP_SAJ_BATTERY_INFO = (
+# battery data packet fields
+MAP_SAJ_BATTERY_DATA = (
     ("battery_1_bms_type", 0, ">H", None, None, None, None, False),
     ("battery_1_bms_serial_number", 2, ">S16", None, None, None, None, False),
     ("battery_1_bms_sw_version", 18, ">H", "0.001", None, None, None, False),
@@ -229,7 +218,9 @@ MAP_SAJ_CONFIG_DATA = (
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: SajH1MqttConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the sensor entities based on a config entry."""
     serial_number: str = entry.data[CONF_SERIAL_NUMBER]
@@ -242,34 +233,24 @@ async def async_setup_entry(
         "serial_number": serial_number,
     }
 
-    LOGGER.info("Setting up sensors")
     sensors: list[SajMqttSensor] = []
 
     # Get coordinators (only realtime data is required, all others are optional)
-    coordinator: SajMqttRealtimeDataCoordinator = hass.data[DOMAIN][entry.entry_id][
-        DATA_COORDINATOR
-    ]
-    coordinator_inverter_info: SajMqttInverterInfoDataCoordinator | None = hass.data[
-        DOMAIN
-    ][entry.entry_id][DATA_COORDINATOR_INVERTER_INFO]
-    coordinator_battery_info: SajMqttBatteryInfoDataCoordinator | None = hass.data[
-        DOMAIN
-    ][entry.entry_id][DATA_COORDINATOR_BATTERY_INFO]
-    coordinator_battery_controller: SajMqttBatteryControllerDataCoordinator | None = (
-        hass.data[DOMAIN][entry.entry_id][DATA_COORDINATOR_BATTERY_CONTROLLER]
+    coordinator_realtime_data = entry.runtime_data.coordinator_realtime_data
+    coordinator_inverter_data = entry.runtime_data.coordinator_inverter_data
+    coordinator_battery_data = entry.runtime_data.coordinator_battery_controller_data
+    coordinator_battery_controller_data = (
+        entry.runtime_data.coordinator_battery_controller_data
     )
-    coordinator_config: SajMqttConfigDataCoordinator | None = hass.data[DOMAIN][
-        entry.entry_id
-    ][DATA_COORDINATOR_CONFIG]
+    coordinator_config_data = entry.runtime_data.coordinator_config_data
 
     # Realtime data sensors
-    await coordinator.async_refresh()
     for config_tuple in MAP_SAJ_REALTIME_DATA:
-        sensor = SajMqttSensor(coordinator, device_info, config_tuple)
+        sensor = SajMqttSensor(coordinator_realtime_data, device_info, config_tuple)
         sensors.append(sensor)
 
-    # Energy statistics sensors
-    for config_tuple in MAP_SAJ_REALTIME_ENERGY_STATS:
+    # Realtime data energy statistics sensors
+    for config_tuple in MAP_SAJ_REALTIME_DATA_ENERGY_STATS:
         (
             name,
             offset,
@@ -294,53 +275,48 @@ async def async_setup_entry(
                 state_class,
                 enabled_default,
             )
-            sensor = SajMqttSensor(coordinator, device_info, tmp_tuple)
+            sensor = SajMqttSensor(coordinator_realtime_data, device_info, tmp_tuple)
             sensors.append(sensor)
             # Update offset for next period
             offset += 4
 
-    # Inverter info sensors
-    if coordinator_inverter_info:
-        await coordinator_inverter_info.async_refresh()
-        for config_tuple in MAP_SAJ_INVERTER_INFO:
-            sensor = SajMqttSensor(coordinator_inverter_info, device_info, config_tuple)
+    # Inverter sensors
+    if coordinator_inverter_data:
+        for config_tuple in MAP_SAJ_INVERTER_DATA:
+            sensor = SajMqttSensor(coordinator_inverter_data, device_info, config_tuple)
             sensors.append(sensor)
 
-    # Battery info sensors
-    if coordinator_battery_info:
-        await coordinator_battery_info.async_refresh()
-        for config_tuple in MAP_SAJ_BATTERY_INFO:
-            sensor = SajMqttSensor(coordinator_battery_info, device_info, config_tuple)
+    # Battery sensors
+    if coordinator_battery_data:
+        for config_tuple in MAP_SAJ_BATTERY_DATA:
+            sensor = SajMqttSensor(coordinator_battery_data, device_info, config_tuple)
             sensors.append(sensor)
 
-    # Battery controller data sensors
-    if coordinator_battery_controller:
-        await coordinator_battery_controller.async_refresh()
+    # Battery controller sensors
+    if coordinator_battery_controller_data:
         for config_tuple in MAP_SAJ_BATTERY_CONTROLLER_DATA:
             sensor = SajMqttSensor(
-                coordinator_battery_controller, device_info, config_tuple
+                coordinator_battery_controller_data, device_info, config_tuple
             )
             sensors.append(sensor)
 
-    # Config data sensors
-    if coordinator_config:
-        await coordinator_config.async_refresh()
+    # Config sensors
+    if coordinator_config_data:
         for config_tuple in MAP_SAJ_CONFIG_DATA:
-            sensor = SajMqttSensor(coordinator_config, device_info, config_tuple)
+            sensor = SajMqttSensor(coordinator_config_data, device_info, config_tuple)
             sensors.append(sensor)
 
     # Add the entities
-    # Use of update_before_add=True seems to have issues (first sensor not loaded on first fetch)
     LOGGER.info(f"Setting up {len(sensors)} sensors")
     async_add_entities(sensors)
 
 
-class SajMqttSensor(CoordinatorEntity[SajMqttDataCoordinator], SensorEntity):
+class SajMqttSensor(CoordinatorEntity[SajH1MqttDataCoordinator], SensorEntity):
     """Saj mqtt sensor."""
 
     def __init__(
         self,
-        coordinator: SajMqttDataCoordinator,
+        coordinator: SajH1MqttDataCoordinator,
         device_info: DeviceInfo,
         config_tuple,
     ) -> None:

@@ -1,35 +1,54 @@
-"""DataUpdateCoordinators for SAJ MQTT integration."""
+"""Coordinators for the SAJ H1 MQTT integration."""
+
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import timedelta
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
+from .client import SajH1MqttClient
 from .const import DOMAIN, LOGGER
-from .sajmqtt import SajMqtt
 from .utils import log_hex
 
 
-class SajMqttDataCoordinator(DataUpdateCoordinator):
-    """SAJ MQTT data coordinator."""
+@dataclass
+class SajH1MqttData:
+    """SAJ H1 MQTT data."""
+
+    mqtt_client: SajH1MqttClient
+    coordinator_realtime_data: SajH1MqttRealtimeDataCoordinator
+    coordinator_inverter_data: SajH1MqttInverterDataCoordinator | None
+    coordinator_battery_data: SajH1MqttBatteryDataCoordinator | None
+    coordinator_battery_controller_data: (
+        SajH1MqttBatteryControllerDataCoordinator | None
+    )
+    coordinator_config_data: SajH1MqttConfigDataCoordinator | None
+
+
+class SajH1MqttDataCoordinator(DataUpdateCoordinator):
+    """SAJ H1 MQTT data coordinator."""
 
     def __init__(
-        self, hass: HomeAssistant, saj_mqtt: SajMqtt, scan_interval: timedelta
+        self,
+        hass: HomeAssistant,
+        mqtt_client: SajH1MqttClient,
+        scan_interval: timedelta,
     ) -> None:
-        """Set up the SajMqttDataCoordinator class."""
+        """Set up the SajH1MqttDataCoordinator class."""
         super().__init__(
             hass,
             LOGGER,
             name=DOMAIN,
             update_interval=scan_interval,
         )
-        self.saj_mqtt = saj_mqtt
+        self.mqtt_client = mqtt_client
         self.data: bytearray | None = None
 
 
-class SajMqttRealtimeDataCoordinator(SajMqttDataCoordinator):
-    """SAJ MQTT realtime data coordinator."""
+class SajH1MqttRealtimeDataCoordinator(SajH1MqttDataCoordinator):
+    """SAJ H1 MQTT realtime data coordinator."""
 
     async def _async_update_data(self) -> bytearray | None:
         """Fetch the realtime data."""
@@ -38,11 +57,11 @@ class SajMqttRealtimeDataCoordinator(SajMqttDataCoordinator):
         LOGGER.debug(
             f"Fetching realtime data at {log_hex(reg_start)}, length: {log_hex(reg_count)}"
         )
-        return await self.saj_mqtt.read_registers(reg_start, reg_count)
+        return await self.mqtt_client.read_registers(reg_start, reg_count)
 
 
-class SajMqttInverterInfoDataCoordinator(SajMqttDataCoordinator):
-    """SAJ MQTT inverter info data coordinator."""
+class SajH1MqttInverterDataCoordinator(SajH1MqttDataCoordinator):
+    """SAJ H1 MQTT inverter data coordinator."""
 
     async def _async_update_data(self) -> bytearray | None:
         """Fetch the inverter info."""
@@ -51,11 +70,11 @@ class SajMqttInverterInfoDataCoordinator(SajMqttDataCoordinator):
         LOGGER.debug(
             f"Fetching inverter info at {log_hex(reg_start)}, length: {log_hex(reg_count)}"
         )
-        return await self.saj_mqtt.read_registers(reg_start, reg_count)
+        return await self.mqtt_client.read_registers(reg_start, reg_count)
 
 
-class SajMqttBatteryInfoDataCoordinator(SajMqttDataCoordinator):
-    """SAJ MQTT battery info data coordinator."""
+class SajH1MqttBatteryDataCoordinator(SajH1MqttDataCoordinator):
+    """SAJ H1 MQTT battery data coordinator."""
 
     async def _async_update_data(self) -> bytearray | None:
         """Fetch the battery info."""
@@ -64,11 +83,11 @@ class SajMqttBatteryInfoDataCoordinator(SajMqttDataCoordinator):
         LOGGER.debug(
             f"Fetching battery info at {log_hex(reg_start)}, length: {log_hex(reg_count)}"
         )
-        return await self.saj_mqtt.read_registers(reg_start, reg_count)
+        return await self.mqtt_client.read_registers(reg_start, reg_count)
 
 
-class SajMqttBatteryControllerDataCoordinator(SajMqttDataCoordinator):
-    """SAJ MQTT battery controller data coordinator."""
+class SajH1MqttBatteryControllerDataCoordinator(SajH1MqttDataCoordinator):
+    """SAJ H1 MQTT battery controller data coordinator."""
 
     async def _async_update_data(self) -> bytearray | None:
         """Fetch the battery controller data."""
@@ -77,11 +96,11 @@ class SajMqttBatteryControllerDataCoordinator(SajMqttDataCoordinator):
         LOGGER.debug(
             f"Fetching battery controller data at {log_hex(reg_start)}, length: {log_hex(reg_count)}"
         )
-        return await self.saj_mqtt.read_registers(reg_start, reg_count)
+        return await self.mqtt_client.read_registers(reg_start, reg_count)
 
 
-class SajMqttConfigDataCoordinator(SajMqttDataCoordinator):
-    """SAJ MQTT config data coordinator."""
+class SajH1MqttConfigDataCoordinator(SajH1MqttDataCoordinator):
+    """SAJ H1 MQTT config data coordinator."""
 
     async def _async_update_data(self) -> bytearray | None:
         """Fetch the config data."""
@@ -90,4 +109,4 @@ class SajMqttConfigDataCoordinator(SajMqttDataCoordinator):
         LOGGER.debug(
             f"Fetching config data at {log_hex(reg_start)}, length: {log_hex(reg_count)}"
         )
-        return await self.saj_mqtt.read_registers(reg_start, reg_count)
+        return await self.mqtt_client.read_registers(reg_start, reg_count)

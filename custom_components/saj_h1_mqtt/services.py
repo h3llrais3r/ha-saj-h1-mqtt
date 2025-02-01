@@ -1,4 +1,5 @@
-"""Handle SAJ MQTT Service calls."""
+"""Services for the SAJ H1 MQTT integration."""
+
 from __future__ import annotations
 
 from struct import unpack_from
@@ -6,18 +7,18 @@ from struct import unpack_from
 import voluptuous as vol
 
 from homeassistant import core
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.exceptions import ServiceValidationError
 import homeassistant.helpers.config_validation as cv
 
 from .const import (
     ATTR_APP_MODE,
+    ATTR_CONFIG_ENTRY,
     ATTR_REGISTER,
     ATTR_REGISTER_FORMAT,
     ATTR_REGISTER_SIZE,
     ATTR_REGISTER_VALUE,
-    DATA_COORDINATOR_BATTERY_CONTROLLER,
-    DATA_COORDINATOR_CONFIG,
-    DATA_SAJMQTT,
     DOMAIN,
     LOGGER,
     MODBUS_REG_APP_MODE,
@@ -28,21 +29,18 @@ from .const import (
     SERVICE_WRITE_REGISTER,
     AppMode,
 )
-from .coordinator import (
-    SajMqttBatteryControllerDataCoordinator,
-    SajMqttConfigDataCoordinator,
-)
-from .sajmqtt import SajMqtt
+from .types import SajH1MqttConfigEntry
 
 
 def async_register_services(hass: HomeAssistant) -> None:
-    """Register services for SAJ MQTT integration."""
+    """Register services for SAJ H1 MQTT integration."""
 
     async def set_app_mode(call: ServiceCall) -> None:
         LOGGER.debug("Setting app mode")
-        saj_mqtt: SajMqtt = hass.data[DOMAIN][DATA_SAJMQTT]
+        entry = get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        mqtt_client = entry.runtime_data.mqtt_client
         app_mode = AppMode[call.data[ATTR_APP_MODE]].value
-        await saj_mqtt.write_register(MODBUS_REG_APP_MODE, app_mode)
+        await mqtt_client.write_register(MODBUS_REG_APP_MODE, app_mode)
 
     LOGGER.debug(f"Registering service: {SERVICE_SET_APP_MODE}")
     hass.services.async_register(
@@ -62,7 +60,8 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def write_register(call: ServiceCall) -> None:
         LOGGER.debug("Writing register")
-        saj_mqtt: SajMqtt = hass.data[DOMAIN][DATA_SAJMQTT]
+        entry = get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        mqtt_client = entry.runtime_data.mqtt_client
         attr_register: str = call.data[ATTR_REGISTER]
         attr_register_value: str = call.data[ATTR_REGISTER_VALUE]
         # Validate input
@@ -83,7 +82,7 @@ def async_register_services(hass: HomeAssistant) -> None:
             LOGGER.error(f"Invalid register value: {attr_register_value}")
             raise e
         # Write register
-        await saj_mqtt.write_register(register, value)
+        await mqtt_client.write_register(register, value)
 
     LOGGER.debug(f"Registering service: {SERVICE_WRITE_REGISTER}")
     hass.services.async_register(
@@ -102,7 +101,8 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def read_register(call: ServiceCall) -> core.ServiceResponse:
         LOGGER.debug("Reading register")
-        saj_mqtt: SajMqtt = hass.data[DOMAIN][DATA_SAJMQTT]
+        entry = get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        mqtt_client = entry.runtime_data.mqtt_client
         attr_register: str = call.data[ATTR_REGISTER]
         attr_register_size: str = call.data[ATTR_REGISTER_SIZE]
         attr_register_format: str | None = call.data[ATTR_REGISTER_FORMAT]
@@ -128,7 +128,7 @@ def async_register_services(hass: HomeAssistant) -> None:
             LOGGER.error(msg)
             raise ValueError(msg)
         # Read register
-        content = await saj_mqtt.read_registers(register_start, register_size)
+        content = await mqtt_client.read_registers(register_start, register_size)
         # Return response (format if needed, otherwise return bytes)
         if attr_register_format:
             (result,) = unpack_from(attr_register_format, content, 0)
@@ -156,9 +156,8 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def refresh_config_data(call: ServiceCall) -> None:
         # Only refresh when coordinator is enabled
-        coordinator: SajMqttConfigDataCoordinator = hass.data[DOMAIN][
-            DATA_COORDINATOR_CONFIG
-        ]
+        entry = get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        coordinator = entry.runtime_data.coordinator_config
         if coordinator:
             LOGGER.debug("Refreshing config data")
             await coordinator.async_request_refresh()
@@ -172,9 +171,8 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def refresh_battery_controller_data(call: ServiceCall) -> None:
         # Only refresh when coordinator is enabled
-        coordinator: SajMqttBatteryControllerDataCoordinator = hass.data[DOMAIN][
-            DATA_COORDINATOR_BATTERY_CONTROLLER
-        ]
+        entry = get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        coordinator = entry.runtime_data.coordinator_battery_controller
         if coordinator:
             LOGGER.debug("Refreshing battery controller data")
             await coordinator.async_request_refresh()
@@ -185,3 +183,19 @@ def async_register_services(hass: HomeAssistant) -> None:
         SERVICE_REFRESH_BATTERY_CONTROLLER_DATA,
         refresh_battery_controller_data,
     )
+
+
+def get_config_entry(hass: HomeAssistant, entry_id: str) -> SajH1MqttConfigEntry:
+    """Return config entry or raise error if not found or not loaded."""
+
+    if not (entry := hass.config_entries.async_get_entry(entry_id)):
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="entry_not_found",
+        )
+    if entry.state is not ConfigEntryState.LOADED:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="entry_not_loaded",
+        )
+    return entry
