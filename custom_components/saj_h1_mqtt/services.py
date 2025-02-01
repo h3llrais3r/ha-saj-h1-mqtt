@@ -35,70 +35,6 @@ from .types import SajH1MqttConfigEntry
 def async_register_services(hass: HomeAssistant) -> None:
     """Register services for SAJ H1 MQTT integration."""
 
-    async def set_app_mode(call: ServiceCall) -> None:
-        LOGGER.debug("Setting app mode")
-        entry = get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
-        mqtt_client = entry.runtime_data.mqtt_client
-        app_mode = AppMode[call.data[ATTR_APP_MODE]].value
-        await mqtt_client.write_register(MODBUS_REG_APP_MODE, app_mode)
-
-    LOGGER.debug(f"Registering service: {SERVICE_SET_APP_MODE}")
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_SET_APP_MODE,
-        set_app_mode,
-        schema=vol.Schema(
-            vol.All(
-                {
-                    vol.Required(ATTR_APP_MODE): vol.All(
-                        cv.string, vol.In([e.name for e in AppMode])
-                    )
-                }
-            )
-        ),
-    )
-
-    async def write_register(call: ServiceCall) -> None:
-        LOGGER.debug("Writing register")
-        entry = get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
-        mqtt_client = entry.runtime_data.mqtt_client
-        attr_register: str = call.data[ATTR_REGISTER]
-        attr_register_value: str = call.data[ATTR_REGISTER_VALUE]
-        # Validate input
-        try:
-            if attr_register.startswith("0x"):
-                register = int(attr_register, 16)
-            else:
-                register = int(attr_register)
-        except ValueError as e:
-            LOGGER.error(f"Invalid register: {attr_register}")
-            raise e
-        try:
-            if attr_register_value.startswith("0x"):
-                value = int(attr_register_value, 16)
-            else:
-                value = int(attr_register_value)
-        except ValueError as e:
-            LOGGER.error(f"Invalid register value: {attr_register_value}")
-            raise e
-        # Write register
-        await mqtt_client.write_register(register, value)
-
-    LOGGER.debug(f"Registering service: {SERVICE_WRITE_REGISTER}")
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_WRITE_REGISTER,
-        write_register,
-        schema=vol.Schema(
-            vol.All(
-                {
-                    vol.Required(ATTR_REGISTER): cv.string,
-                    vol.Required(ATTR_REGISTER_VALUE): cv.string,
-                }
-            )
-        ),
-    )
-
     async def read_register(call: ServiceCall) -> core.ServiceResponse:
         LOGGER.debug("Reading register")
         entry = get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
@@ -135,39 +71,91 @@ def async_register_services(hass: HomeAssistant) -> None:
             return {"value": str(result)}
         return {"value": ":".join(f"{b:02x}" for b in content)}
 
-    LOGGER.debug(f"Registering service: {SERVICE_READ_REGISTER}")
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_READ_REGISTER,
-        read_register,
-        schema=vol.Schema(
-            vol.All(
-                {
-                    vol.Required(ATTR_REGISTER): cv.string,
-                    vol.Required(ATTR_REGISTER_SIZE): cv.string,
-                    vol.Optional(ATTR_REGISTER_FORMAT, default=None): vol.Any(
-                        cv.string, None
-                    ),
-                }
-            )
-        ),
-        supports_response=SupportsResponse.ONLY,
-    )
+    if not hass.services.has_service(DOMAIN, SERVICE_READ_REGISTER):
+        LOGGER.debug(f"Registering service: {SERVICE_READ_REGISTER}")
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_READ_REGISTER,
+            read_register,
+            schema=vol.Schema(
+                vol.All(
+                    {
+                        vol.Required(ATTR_REGISTER): cv.string,
+                        vol.Required(ATTR_REGISTER_SIZE): cv.string,
+                        vol.Optional(ATTR_REGISTER_FORMAT, default=None): vol.Any(
+                            cv.string, None
+                        ),
+                    }
+                )
+            ),
+            supports_response=SupportsResponse.ONLY,
+        )
 
-    async def refresh_config_data(call: ServiceCall) -> None:
-        # Only refresh when coordinator is enabled
+    async def write_register(call: ServiceCall) -> None:
+        LOGGER.debug("Writing register")
         entry = get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
-        coordinator = entry.runtime_data.coordinator_config
-        if coordinator:
-            LOGGER.debug("Refreshing config data")
-            await coordinator.async_request_refresh()
+        mqtt_client = entry.runtime_data.mqtt_client
+        attr_register: str = call.data[ATTR_REGISTER]
+        attr_register_value: str = call.data[ATTR_REGISTER_VALUE]
+        # Validate input
+        try:
+            if attr_register.startswith("0x"):
+                register = int(attr_register, 16)
+            else:
+                register = int(attr_register)
+        except ValueError as e:
+            LOGGER.error(f"Invalid register: {attr_register}")
+            raise e
+        try:
+            if attr_register_value.startswith("0x"):
+                value = int(attr_register_value, 16)
+            else:
+                value = int(attr_register_value)
+        except ValueError as e:
+            LOGGER.error(f"Invalid register value: {attr_register_value}")
+            raise e
+        # Write register
+        await mqtt_client.write_register(register, value)
 
-    LOGGER.debug(f"Registering service: {SERVICE_REFRESH_CONFIG_DATA}")
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_REFRESH_CONFIG_DATA,
-        refresh_config_data,
-    )
+    if not hass.services.has_service(DOMAIN, SERVICE_WRITE_REGISTER):
+        LOGGER.debug(f"Registering service: {SERVICE_WRITE_REGISTER}")
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_WRITE_REGISTER,
+            write_register,
+            schema=vol.Schema(
+                vol.All(
+                    {
+                        vol.Required(ATTR_REGISTER): cv.string,
+                        vol.Required(ATTR_REGISTER_VALUE): cv.string,
+                    }
+                )
+            ),
+        )
+
+    async def set_app_mode(call: ServiceCall) -> None:
+        LOGGER.debug("Setting app mode")
+        entry = get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        mqtt_client = entry.runtime_data.mqtt_client
+        app_mode = AppMode[call.data[ATTR_APP_MODE]].value
+        await mqtt_client.write_register(MODBUS_REG_APP_MODE, app_mode)
+
+    if not hass.services.has_service(DOMAIN, SERVICE_SET_APP_MODE):
+        LOGGER.debug(f"Registering service: {SERVICE_SET_APP_MODE}")
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_SET_APP_MODE,
+            set_app_mode,
+            schema=vol.Schema(
+                vol.All(
+                    {
+                        vol.Required(ATTR_APP_MODE): vol.All(
+                            cv.string, vol.In([e.name for e in AppMode])
+                        )
+                    }
+                )
+            ),
+        )
 
     async def refresh_battery_controller_data(call: ServiceCall) -> None:
         # Only refresh when coordinator is enabled
@@ -177,12 +165,38 @@ def async_register_services(hass: HomeAssistant) -> None:
             LOGGER.debug("Refreshing battery controller data")
             await coordinator.async_request_refresh()
 
-    LOGGER.debug(f"Registering service: {SERVICE_REFRESH_BATTERY_CONTROLLER_DATA}")
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_REFRESH_BATTERY_CONTROLLER_DATA,
-        refresh_battery_controller_data,
-    )
+    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_BATTERY_CONTROLLER_DATA):
+        LOGGER.debug(f"Registering service: {SERVICE_REFRESH_BATTERY_CONTROLLER_DATA}")
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_REFRESH_BATTERY_CONTROLLER_DATA,
+            refresh_battery_controller_data,
+        )
+
+    async def refresh_config_data(call: ServiceCall) -> None:
+        # Only refresh when coordinator is enabled
+        entry = get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        coordinator = entry.runtime_data.coordinator_config
+        if coordinator:
+            LOGGER.debug("Refreshing config data")
+            await coordinator.async_request_refresh()
+
+    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_CONFIG_DATA):
+        LOGGER.debug(f"Registering service: {SERVICE_REFRESH_CONFIG_DATA}")
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_REFRESH_CONFIG_DATA,
+            refresh_config_data,
+        )
+
+
+def async_remove_services(hass: HomeAssistant) -> None:
+    # Remove all services
+    hass.services.async_remove(DOMAIN, SERVICE_SET_APP_MODE)
+    hass.services.async_remove(DOMAIN, SERVICE_WRITE_REGISTER)
+    hass.services.async_remove(DOMAIN, SERVICE_READ_REGISTER)
+    hass.services.async_remove(DOMAIN, SERVICE_REFRESH_CONFIG_DATA)
+    hass.services.async_remove(DOMAIN, SERVICE_REFRESH_BATTERY_CONTROLLER_DATA)
 
 
 def get_config_entry(hass: HomeAssistant, entry_id: str) -> SajH1MqttConfigEntry:

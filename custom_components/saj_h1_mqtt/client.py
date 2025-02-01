@@ -57,14 +57,15 @@ class SajH1MqttClient:
 
         self.unsubscribe_callbacks = {}
 
-    async def initialize(self) -> None:
-        """Initialize."""
+    async def connect(self) -> None:
+        """Connect to mqtt."""
         self.unsubscribe_callbacks = await self._subscribe_topics()
 
-    async def deinitialize(self) -> None:
-        """Deinitialize."""
-        for unsubscribe_callback in self.unsubscribe_callbacks.values():
+    async def disconnect(self) -> None:
+        """Disconnect from mqtt."""
+        for topic, unsubscribe_callback in self.unsubscribe_callbacks.items():
             # Unsubscribe callbacks are not async, so no need to await for them
+            debug(f"Unsubscribing from topic: {topic}")
             unsubscribe_callback()
 
     async def read_registers(
@@ -220,12 +221,13 @@ class SajH1MqttClient:
             }
         }
 
-        debug(f"Subscribing to topics: {list(topics.keys())}")
         unsubscribe_callbacks = {}
-        for item, topic_data in topics.items():
-            unsubscribe_callbacks[item] = await self.mqtt.async_subscribe(
+        for topic_data in topics.values():
+            topic = topic_data["topic"]
+            debug(f"Subscribing to topic: {topic}")
+            unsubscribe_callbacks[topic] = await self.mqtt.async_subscribe(
                 self.hass,
-                topic_data["topic"],
+                topic,
                 topic_data["msg_callback"],
                 qos=topic_data["qos"],
                 encoding=topic_data["encoding"],

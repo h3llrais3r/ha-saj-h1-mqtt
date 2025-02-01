@@ -30,24 +30,14 @@ from .coordinator import (
     SajH1MqttInverterDataCoordinator,
     SajH1MqttRealtimeDataCoordinator,
 )
-from .services import async_register_services
+from .services import async_register_services, async_remove_services
 from .types import SajH1MqttConfigEntry
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 
-async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up services."""
-
-    # Register services, should not be registered again upon reload, so put it here
-    async_register_services(hass)
-
-    return True
-
-
 async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) -> bool:
     """Set up a config entry."""
-
     # Make sure MQTT integration is enabled and the client is available
     if not await mqtt.async_wait_for_mqtt_client(hass):
         LOGGER.error("MQTT integration is not available")
@@ -86,7 +76,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
 
     # Setup mqtt client
     mqtt_client = SajH1MqttClient(hass, serial_number, debug_mqtt)
-    await mqtt_client.initialize()
+    await mqtt_client.connect()
 
     # Setup coordinators
     LOGGER.debug("Setting up coordinators")
@@ -152,6 +142,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
     LOGGER.debug(f"Setting up plaforms: {[p.value for p in PLATFORMS]}")
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # Register services
+    async_register_services(hass)
+
     # Reload entry when it is updated (options flow)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
@@ -167,6 +160,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) -
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        await entry.runtime_data.mqtt_client.deinitialize()
+        # Remove services and disconnect the mqtt client
+        async_remove_services(hass)
+        await entry.runtime_data.mqtt_client.disconnect()
 
     return unload_ok
