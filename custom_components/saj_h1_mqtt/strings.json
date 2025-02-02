@@ -11,7 +11,8 @@
       }
     },
     "abort": {
-      "already_configured": "This device is already configured"
+      "already_configured": "This device is already configured.",
+      "mqtt_required": "This integration requires MQTT.\nPlease set up the MQTT integration first."
     }
   },
   "options": {

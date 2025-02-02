@@ -6,6 +6,7 @@ from typing import Any
 
 import voluptuous as vol
 
+from homeassistant.components.mqtt import DOMAIN as MQTT_DOMAIN
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -133,6 +134,10 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle the initial config flow."""
+        # Check is MQTT is set up
+        if not self.hass.config_entries.async_entries(MQTT_DOMAIN):
+            return self.async_abort(reason="mqtt_required")
+
         if user_input is not None:
             await self.async_set_unique_id(user_input[CONF_SERIAL_NUMBER])
             self._abort_if_unique_id_configured()
