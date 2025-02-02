@@ -4,6 +4,13 @@
 read_register:
   description: Read a register value from the inverter
   fields:
+    config_entry:
+      name: Device
+      description: SAJ H1 solar inverter, defaults to the first configured device if not specified
+      required: false
+      selector:
+        config_entry:
+          integration: saj_h1_mqtt
     register:
       name: Register
       description: The register address in hex or decimal format
@@ -30,6 +37,13 @@ read_register:
 write_register:
   description: Write a register value to the inverter
   fields:
+    config_entry:
+      name: Device
+      description: SAJ H1 solar inverter, defaults to the first configured device if not specified
+      required: false
+      selector:
+        config_entry:
+          integration: saj_h1_mqtt
     register:
       name: Register
       description: The register address in hex or decimal format
@@ -48,23 +62,62 @@ write_register:
 # Refresh the inverter data sensors
 refresh_inverter_data:
   description: Refresh the inverter data sensors
+  fields:
+    config_entry:
+      name: Device
+      description: SAJ H1 solar inverter, defaults to the first configured device if not specified
+      required: false
+      selector:
+        config_entry:
+          integration: saj_h1_mqtt
 
 # Refresh the battery data sensors
 refresh_battery_data:
   description: Refresh the battery data sensors
+  fields:
+    config_entry:
+      name: Device
+      description: SAJ H1 solar inverter, defaults to the first configured device if not specified
+      required: false
+      selector:
+        config_entry:
+          integration: saj_h1_mqtt
 
 # Refresh the battery controller data sensors
 refresh_battery_controller_data:
   description: Refresh the battery controller data sensors
+  fields:
+    config_entry:
+      name: Device
+      description: SAJ H1 solar inverter, defaults to the first configured device if not specified
+      required: false
+      selector:
+        config_entry:
+          integration: saj_h1_mqtt
 
 # Refresh the config data sensors
 refresh_config_data:
   description: Refresh the config data sensors
+  fields:
+    config_entry:
+      name: Device
+      description: SAJ H1 solar inverter, defaults to the first configured device if not specified
+      required: false
+      selector:
+        config_entry:
+          integration: saj_h1_mqtt
 
 # Set the inverter app mode
 set_app_mode:
   description: Set the inverter app mode
   fields:
+    config_entry:
+      name: Device
+      description: SAJ H1 solar inverter, defaults to the first configured device if not specified
+      required: false
+      selector:
+        config_entry:
+          integration: saj_h1_mqtt
     app_mode:
       required: true
       selector:
