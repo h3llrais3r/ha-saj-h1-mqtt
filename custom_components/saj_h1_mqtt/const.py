@@ -10,6 +10,7 @@ DOMAIN = "saj_h1_mqtt"
 BRAND = "SAJ"
 MANUFACTURER = "SAJ Electric"
 MODEL = "H1 series inverter"
+MODEL_SHORT = "H1"
 
 # Configuration constants
 CONF_SERIAL_NUMBER = "serial_number"
@@ -19,6 +20,7 @@ CONF_SCAN_INTERVAL_BATTERY_DATA = "scan_interval_battery_data"
 CONF_SCAN_INTERVAL_BATTERY_CONTROLLER_DATA = "scan_interval_battery_controller_data"
 CONF_SCAN_INTERVAL_CONFIG_DATA = "scan_interval_config_data"
 CONF_ENABLE_MQTT_DEBUG = "enable_mqtt_debug"
+CONF_ENABLE_SERIAL_NUMBER_PREFIX = "enable_serial_number_prefix"
 
 # Service constants
 SERVICE_READ_REGISTER = "read_register"
@@ -58,9 +60,6 @@ MQTT_DATA_TRANSMISSION_TIMEOUT = 10
 
 # Default constants
 DEFAULT_SCAN_INTERVAL = timedelta(seconds=60)
-
-# Other constants
-STARTUP = "startup"
 
 LOGGER = logging.getLogger(__package__)
 

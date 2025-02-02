@@ -23,6 +23,7 @@ from homeassistant.helpers.selector import (
 
 from .const import (
     CONF_ENABLE_MQTT_DEBUG,
+    CONF_ENABLE_SERIAL_NUMBER_PREFIX,
     CONF_SCAN_INTERVAL_BATTERY_CONTROLLER_DATA,
     CONF_SCAN_INTERVAL_BATTERY_DATA,
     CONF_SCAN_INTERVAL_CONFIG_DATA,
@@ -47,6 +48,10 @@ CONFIG_SCHEMA = vol.Schema(
                 unit_of_measurement="seconds",
             )
         ),
+        vol.Optional(
+            CONF_ENABLE_SERIAL_NUMBER_PREFIX,
+            default=False,
+        ): BooleanSelector(),
     },
 )
 
@@ -108,6 +113,10 @@ OPTIONS_SCHEMA = vol.Schema(
             )
         ),
         vol.Optional(
+            CONF_ENABLE_SERIAL_NUMBER_PREFIX,
+            default=False,
+        ): BooleanSelector(),
+        vol.Optional(
             CONF_ENABLE_MQTT_DEBUG,
             default=False,
         ): BooleanSelector(),
@@ -135,7 +144,10 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 options={
                     CONF_SCAN_INTERVAL_REALTIME_DATA: user_input[
                         CONF_SCAN_INTERVAL_REALTIME_DATA
-                    ]
+                    ],
+                    CONF_ENABLE_SERIAL_NUMBER_PREFIX: user_input[
+                        CONF_ENABLE_SERIAL_NUMBER_PREFIX
+                    ],
                 },
             )
 

@@ -26,11 +26,13 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     BRAND,
+    CONF_ENABLE_SERIAL_NUMBER_PREFIX,
     CONF_SERIAL_NUMBER,
     DOMAIN,
     LOGGER,
     MANUFACTURER,
     MODEL,
+    MODEL_SHORT,
     AppMode,
     WorkingMode,
 )
@@ -224,6 +226,8 @@ async def async_setup_entry(
 ) -> None:
     """Set up the sensor entities based on a config entry."""
     serial_number: str = entry.data[CONF_SERIAL_NUMBER]
+    enable_serial_number_prefix: bool = entry.options[CONF_ENABLE_SERIAL_NUMBER_PREFIX]
+    config_tuple = (serial_number, enable_serial_number_prefix)
 
     device_info: DeviceInfo = {
         "identifiers": {(DOMAIN, serial_number)},
@@ -233,7 +237,7 @@ async def async_setup_entry(
         "serial_number": serial_number,
     }
 
-    sensors: list[SajMqttSensor] = []
+    sensors: list[SajH1MqttSensor] = []
 
     # Get coordinators (only realtime data is required, all others are optional)
     coordinator_realtime_data = entry.runtime_data.coordinator_realtime_data
@@ -245,12 +249,13 @@ async def async_setup_entry(
     coordinator_config_data = entry.runtime_data.coordinator_config_data
 
     # Realtime data sensors
-    for config_tuple in MAP_SAJ_REALTIME_DATA:
-        sensor = SajMqttSensor(coordinator_realtime_data, device_info, config_tuple)
+    for sensor_tuple in MAP_SAJ_REALTIME_DATA:
+        sensor_config = SajH1MqttSensorConfig(sensor_tuple, config_tuple)
+        sensor = SajH1MqttSensor(coordinator_realtime_data, sensor_config, device_info)
         sensors.append(sensor)
 
     # Realtime data energy statistics sensors
-    for config_tuple in MAP_SAJ_REALTIME_DATA_ENERGY_STATS:
+    for sensor_tuple in MAP_SAJ_REALTIME_DATA_ENERGY_STATS:
         (
             name,
             offset,
@@ -260,12 +265,12 @@ async def async_setup_entry(
             device_class,
             state_class,
             enabled_default,
-        ) = config_tuple
+        ) = sensor_tuple
         # 4 statistics for each type
         for period in "daily", "monthly", "yearly", "total":
-            # Create new config tuple with new name
+            # Create new stats sensor tuple with new name
             sensor_name = f"{name}_{period}"
-            tmp_tuple = (
+            stats_sensor_tuple = (
                 sensor_name,
                 offset,
                 data_type,
@@ -275,35 +280,48 @@ async def async_setup_entry(
                 state_class,
                 enabled_default,
             )
-            sensor = SajMqttSensor(coordinator_realtime_data, device_info, tmp_tuple)
+            sensor_config = SajH1MqttSensorConfig(stats_sensor_tuple, config_tuple)
+            sensor = SajH1MqttSensor(
+                coordinator_realtime_data, sensor_config, device_info
+            )
             sensors.append(sensor)
             # Update offset for next period
             offset += 4
 
     # Inverter sensors
     if coordinator_inverter_data:
-        for config_tuple in MAP_SAJ_INVERTER_DATA:
-            sensor = SajMqttSensor(coordinator_inverter_data, device_info, config_tuple)
+        for sensor_tuple in MAP_SAJ_INVERTER_DATA:
+            sensor_config = SajH1MqttSensorConfig(sensor_tuple, config_tuple)
+            sensor = SajH1MqttSensor(
+                coordinator_inverter_data, sensor_config, device_info
+            )
             sensors.append(sensor)
 
     # Battery sensors
     if coordinator_battery_data:
-        for config_tuple in MAP_SAJ_BATTERY_DATA:
-            sensor = SajMqttSensor(coordinator_battery_data, device_info, config_tuple)
+        for sensor_tuple in MAP_SAJ_BATTERY_DATA:
+            sensor_config = SajH1MqttSensorConfig(sensor_tuple, config_tuple)
+            sensor = SajH1MqttSensor(
+                coordinator_battery_data, sensor_config, device_info
+            )
             sensors.append(sensor)
 
     # Battery controller sensors
     if coordinator_battery_controller_data:
-        for config_tuple in MAP_SAJ_BATTERY_CONTROLLER_DATA:
-            sensor = SajMqttSensor(
-                coordinator_battery_controller_data, device_info, config_tuple
+        for sensor_tuple in MAP_SAJ_BATTERY_CONTROLLER_DATA:
+            sensor_config = SajH1MqttSensorConfig(sensor_tuple, config_tuple)
+            sensor = SajH1MqttSensor(
+                coordinator_battery_controller_data, sensor_config, device_info
             )
             sensors.append(sensor)
 
     # Config sensors
     if coordinator_config_data:
-        for config_tuple in MAP_SAJ_CONFIG_DATA:
-            sensor = SajMqttSensor(coordinator_config_data, device_info, config_tuple)
+        for sensor_tuple in MAP_SAJ_CONFIG_DATA:
+            sensor_config = SajH1MqttSensorConfig(sensor_tuple, config_tuple)
+            sensor = SajH1MqttSensor(
+                coordinator_config_data, sensor_config, device_info
+            )
             sensors.append(sensor)
 
     # Add the entities
@@ -311,17 +329,11 @@ async def async_setup_entry(
     async_add_entities(sensors)
 
 
-class SajMqttSensor(CoordinatorEntity[SajH1MqttDataCoordinator], SensorEntity):
-    """Saj mqtt sensor."""
+class SajH1MqttSensorConfig:
+    """SAJ H1 MQTT sensor configuration."""
 
-    def __init__(
-        self,
-        coordinator: SajH1MqttDataCoordinator,
-        device_info: DeviceInfo,
-        config_tuple,
-    ) -> None:
-        """Initialize the sensor."""
-        super().__init__(coordinator)
+    def __init__(self, sensor_tuple, config_tuple) -> None:
+        """Initialize the sensor configuration."""
         (
             sensor_name,
             offset,
@@ -331,31 +343,68 @@ class SajMqttSensor(CoordinatorEntity[SajH1MqttDataCoordinator], SensorEntity):
             device_class,
             state_class,
             enabled_default,
-        ) = config_tuple
+        ) = sensor_tuple
+        (serial_number, enable_serial_number_prefix) = config_tuple
+        # Assign fields from sensor tuple
+        self.sensor_name = sensor_name
+        self.offset = offset
+        self.data_type = data_type
+        self.scale = scale
+        self.unit = unit
+        self.device_class = device_class
+        self.state_class = state_class
+        self.enabled_default = enabled_default
+        # Assign fields from config tuple
+        self.serial_number = serial_number
+        self.enable_serial_number_prefix = enable_serial_number_prefix
 
-        self.data_type: str = data_type
-        self.offset: int = offset
-        self.scale: float | str | None = scale
-        self.unit: str | None = unit
+
+class SajH1MqttSensor(CoordinatorEntity[SajH1MqttDataCoordinator], SensorEntity):
+    """SAJ H1 MQTT sensor."""
+
+    def __init__(
+        self,
+        coordinator: SajH1MqttDataCoordinator,
+        config: SajH1MqttSensorConfig,
+        device_info: DeviceInfo,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self.data_type: str = config.data_type
+        self.offset: int = config.offset
+        self.scale: float | str | None = config.scale
+        self.unit: str | None = config.unit
         # Use state class as enum class when device class is ENUM
         self.enum_class = (
-            state_class if device_class is SensorDeviceClass.ENUM else None
+            config.state_class
+            if config.device_class is SensorDeviceClass.ENUM
+            else None
+        )
+        # Set sensor name prefix
+        self.prefix = (
+            f"{BRAND}_{config.serial_number}"
+            if config.enable_serial_number_prefix
+            else f"{BRAND}_{MODEL_SHORT}"
         )
 
         # Set entity attributes
-        self._attr_unique_id = f"{DOMAIN}_{device_info['serial_number']}_{sensor_name}"
-        self._attr_name = f"{DOMAIN}_{sensor_name}"
-        self._attr_device_class = device_class
+        self._attr_unique_id = (
+            f"{BRAND}_{config.serial_number}_{config.sensor_name}".lower()
+        )
+        self._attr_name = f"{self.prefix}_{config.sensor_name}".lower()
+        self._attr_device_class = config.device_class
         # Clear state class when device class is ENUM
         self._attr_state_class = (
-            state_class if device_class is not SensorDeviceClass.ENUM else None
+            config.state_class
+            if config.device_class is not SensorDeviceClass.ENUM
+            else None
         )
-        self._attr_native_unit_of_measurement = unit
+        self._attr_native_unit_of_measurement = config.unit
         # Set options as enum names when device class is ENUM
         self._attr_options = (
             [e.name for e in self.enum_class] if self.enum_class else None
         )
-        self._attr_entity_registry_enabled_default = enabled_default
+        self._attr_entity_registry_enabled_default = config.enabled_default
         # Set entity value
         LOGGER.debug(f"Setting up sensor: {self.name}")
         self._attr_native_value = self._get_native_value()
@@ -401,7 +450,7 @@ class SajMqttSensor(CoordinatorEntity[SajH1MqttDataCoordinator], SensorEntity):
         """Handle updated data from the coordinator."""
         value = self._get_native_value()
         if value is None:
-            return None
+            return
 
         # Only update sensor when there is a value
         self._attr_native_value = value

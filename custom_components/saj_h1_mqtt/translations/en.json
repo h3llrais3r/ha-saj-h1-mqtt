@@ -4,9 +4,10 @@
       "user": {
         "data": {
           "serial_number": "Serial number",
-          "scan_interval_realtime_data": "Realtime data scan interval"
+          "scan_interval_realtime_data": "Realtime data scan interval",
+          "enable_serial_number_prefix": "Use serial number in sensor name prefix"
         },
-        "title": "SAJ H1 inverter over MQTT"
+        "title": "SAJ H1 solar inverter"
       }
     },
     "abort": {
@@ -22,9 +23,10 @@
           "scan_interval_battery_data": "Battery data scan interval (0=disabled)",
           "scan_interval_battery_controller_data": "Battery controller data scan interval (0=disabled)",
           "scan_interval_config_data": "Config data scan interval (0=disabled)",
+          "enable_serial_number_prefix": "Use serial number in sensor name prefix",
           "enable_mqtt_debug": "Enable MQTT debugging"
         },
-        "title": "SAJ H1 inverter options"
+        "title": "SAJ H1 solar inverter options"
       }
     }
   }
