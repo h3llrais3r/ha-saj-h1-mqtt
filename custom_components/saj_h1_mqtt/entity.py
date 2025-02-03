@@ -114,6 +114,15 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity):
 
         LOGGER.debug(f"Setting up entity: {self.name}")
 
+    def _convert_native_value(
+        self, value: float | str | None
+    ) -> int | float | str | None:
+        """Convert the native value.
+
+        To be replaced by classes who want to have custom conversion logic.
+        """
+        return value
+
     def _get_native_value(self) -> int | float | str | None:
         """Get the native value for the entity."""
         # Return None if no coordinator data
@@ -140,6 +149,9 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity):
         # Convert enum sensor to the corresponding enum name
         if self.enum_class:
             value = self.enum_class(value).name
+
+        # Custom conversion
+        value = self._convert_native_value(value)
 
         LOGGER.debug(
             f"Entity: {self.entity_id}, value: {value}{' ' + self._unit if self._unit else ''}"
