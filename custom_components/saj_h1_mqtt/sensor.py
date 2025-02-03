@@ -302,6 +302,10 @@ class SajH1MqttSensorEntity(SajH1MqttEntity, SensorEntity):
     """SAJ H1 MQTT sensor entity."""
 
     @property
+    def _entity_type(self) -> str:
+        return "sensor"
+
+    @property
     def native_value(self) -> int | float | str | None:
         """Return the native value to represent the entity state."""
         return self._get_native_value()

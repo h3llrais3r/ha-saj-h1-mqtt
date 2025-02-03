@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from abc import abstractmethod
 from struct import unpack_from
 from typing import Any
 
@@ -78,7 +79,7 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity):
             else f"{BRAND}_{MODEL_SHORT}"
         )
 
-        # Set entity attributes
+        # Set entity attributes (TODO: check if we need to suffix the unique_id with _{self._entity_type})
         self._attr_unique_id = (
             f"{self._unique_id_prefix}_{entity_config.entity_name}".lower()
         )
@@ -145,3 +146,8 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity):
         )
 
         return value
+
+    @property
+    @abstractmethod
+    def _entity_type(self) -> str:
+        pass
