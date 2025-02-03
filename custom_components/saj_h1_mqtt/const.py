@@ -80,3 +80,33 @@ class AppMode(Enum):
     TIME_OF_USE = 1
     BACKUP = 2
     PASSIVE = 3
+
+
+class SolarState(Enum):
+    """Solar state."""
+
+    PRODUCING = "PRODUCING"
+    STANDBY = "STANDBY"
+
+
+class BatteryState(Enum):
+    "Battery state."
+
+    CHARGING = "CHARGING"
+    DISCHARGING = "DISCHARGING"
+    STANDBY = "STANDBY"
+
+
+class GridState(Enum):
+    """Grid state."""
+
+    IMPORTING = "IMPORTING"
+    EXPORTING = "EXPORTING"
+    STANDBY = "STANDBY"
+
+
+class SystemLoadState(Enum):
+    "System load state."
+
+    CONSUMING = "CONSUMING"
+    STANDBY = "STANDBY"
