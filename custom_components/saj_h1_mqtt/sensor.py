@@ -21,6 +21,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
+    CONF_ENABLE_ACCURATE_REALTIME_POWER_DATA,
     LOGGER,
     AppMode,
     BatteryState,
@@ -29,6 +30,7 @@ from .const import (
     SystemLoadState,
     WorkingMode,
 )
+from .coordinator import SajH1MqttDataCoordinator
 from .entity import SajH1MqttEntity, SajH1MqttEntityConfig
 from .types import SajH1MqttConfigEntry
 
@@ -209,18 +211,31 @@ MAP_SAJ_CONFIG_DATA = (
     ("battery_soc_low", 90, ">H", None, PERCENTAGE, SensorDeviceClass.BATTERY, SensorStateClass.MEASUREMENT, False),
 )
 
-# Realtime power sensors (based on realtime data)
-REALTIME_SYSTEM_LOAD_POWER_SENSOR = ("realtime_system_load_power", 0x140, ">H", 1.0, UnitOfPower.WATT, SensorDeviceClass.POWER, SensorStateClass.MEASUREMENT, True)
+# Realtime power sensors (based on realtime data, to be used with power flow charts)
 REALTIME_SOLAR_POWER_SENSOR = ("realtime_solar_power", 0x14a, ">H", 1.0, UnitOfPower.WATT, SensorDeviceClass.POWER, SensorStateClass.MEASUREMENT, True)
 REALTIME_BATTERY_POWER_SENSOR = ("realtime_battery_power", 0x14c, ">h", 1.0, UnitOfPower.WATT, SensorDeviceClass.POWER, SensorStateClass.MEASUREMENT, True)
-REALTIME_GRID_POWER_SENSOR = ("realtime_grid_power", 0x15a, ">h", 1.0, UnitOfPower.WATT, SensorDeviceClass.POWER, SensorStateClass.MEASUREMENT, True)
-
+REALTIME_GRID_POWER_SENSOR = ("realtime_grid_power", 0x15a, ">h", -1.0, UnitOfPower.WATT, SensorDeviceClass.POWER, SensorStateClass.MEASUREMENT, True) # uses summary_smart_meter_load_power_2 data and -1.0 as scale as we have inverted data
+REALTIME_SYSTEM_LOAD_POWER_SENSOR = ("realtime_system_load_power", 0x140, ">H", 1.0, UnitOfPower.WATT, SensorDeviceClass.POWER, SensorStateClass.MEASUREMENT, True)
 
 # Custom sensors (based on realtime data)
-SYSTEM_LOAD_STATE_SENSOR = ("system_load_state", 0x140, ">H", 1.0, None, None, None, True)
 SOLAR_STATE_SENSOR = ("solar_state", 0x14a, ">H", 1.0, None, None, None, True)
 BATTERY_STATE_SENSOR = ("battery_state", 0x14c, ">h", 1.0, None, None, None, True)
-GRID_STATE_SENSOR = ("grid_state", 0x15a, ">h", 1.0, None, None, None, True)
+GRID_STATE_SENSOR = ("grid_state", 0x15a, ">h", -1.0, None, None, None, True) # uses summary_smart_meter_load_power_2 data and -1.0 as scale as we have inverted data
+SYSTEM_LOAD_STATE_SENSOR = ("system_load_state", 0x140, ">H", 1.0, None, None, None, True)
+
+# Accurate sensors (only used when enabled in config, replaces the original 'realtime_grid_power' and 'grid_state' sensors)
+# SAJ did some update and is not showing the minimal import/export values from the grid anymore in their esolar app
+# This means that the values of the 'realtime_system_load_power' are slightly adapted to hide those minor import/export values from the grid
+# If we want to get the real accurate values back, we can use the readings from 'summary_smart_meter_load_power_1' sensor
+# However, we need to recalculate the 'realtime_system_load_power' to make sure the balance is correct
+# Formula: 'realtime_system_load_power' = 'summary_system_load_power' + 'summary_smart_meter_load_power_1' + 'summary_smart_meter_load_power_2' (which has inverted scale)
+ACCURATE_REALTIME_GRID_POWER_SENSOR = ("realtime_grid_power", 0x142, ">h", 1.0, UnitOfPower.WATT, SensorDeviceClass.POWER, SensorStateClass.MEASUREMENT, True) # uses summary_smart_meter_load_power_1 data (correct scale)
+ACCURATE_REALTIME_SYSTEM_LOAD_POWER_SENSOR = (
+    ("realtime_system_load_power", 0x140, ">H", 1.0, UnitOfPower.WATT, SensorDeviceClass.POWER, SensorStateClass.MEASUREMENT, True),
+    ("summary_smart_meter_load_power_1", 0x142, ">h", 1.0, None, None, None, False),
+    ("summary_smart_meter_load_power_2", 0x15a, ">h", 1.0, None, None, None, False)
+)
+ACCURATE_GRID_STATE_SENSOR = ("grid_state", 0x142, ">h", 1.0, None, None, None, True) # uses summary_smart_meter_load_power_1 data
 
 # fmt: on
 
@@ -232,6 +247,11 @@ async def async_setup_entry(
 ) -> None:
     """Set up the sensor entities based on a config entry."""
     entities: list[SajH1MqttSensorEntity] = []
+
+    # Check if we want to use the accurate power sensors or not
+    use_accurate_realtime_power_data = entry.options.get(
+        CONF_ENABLE_ACCURATE_REALTIME_POWER_DATA, False
+    )
 
     # Get coordinators (only realtime data is required, all others are optional)
     coordinator_realtime_data = entry.runtime_data.coordinator_realtime_data
@@ -312,11 +332,6 @@ async def async_setup_entry(
 
     # Realtime power sensors
 
-    # Realtime system load power sensor
-    entity_config = SajH1MqttSensorEntityConfig(REALTIME_SYSTEM_LOAD_POWER_SENSOR)
-    entity = SajH1MqttSensorEntity(coordinator_realtime_data, entity_config)
-    entities.append(entity)
-
     # Realtime solar power sensor
     entity_config = SajH1MqttSensorEntityConfig(REALTIME_SOLAR_POWER_SENSOR)
     entity = SajH1MqttSensorEntity(coordinator_realtime_data, entity_config)
@@ -328,18 +343,34 @@ async def async_setup_entry(
     entities.append(entity)
 
     # Realtime grid power sensor
-    entity_config = SajH1MqttSensorEntityConfig(REALTIME_GRID_POWER_SENSOR)
+    config_tuple = (
+        ACCURATE_REALTIME_GRID_POWER_SENSOR
+        if use_accurate_realtime_power_data
+        else REALTIME_GRID_POWER_SENSOR
+    )
+    entity_config = SajH1MqttSensorEntityConfig(config_tuple)
     entity = SajH1MqttSensorEntity(coordinator_realtime_data, entity_config)
     entities.append(entity)
 
-    # Custom state sensors (based on realtime data)
+    # Realtime system load power sensor
+    if use_accurate_realtime_power_data:
+        config_tuple = ACCURATE_REALTIME_SYSTEM_LOAD_POWER_SENSOR
+        entity_config = SajH1MqttSensorEntityConfig(config_tuple[0])
+        smart_meter_1_config = SajH1MqttSensorEntityConfig(config_tuple[1])
+        smart_meter_2_config = SajH1MqttSensorEntityConfig(config_tuple[2])
+        entity = SajH1MqttRealtimeSystemLoadPowerSensorEntity(
+            coordinator_realtime_data,
+            entity_config,
+            smart_meter_1_config,
+            smart_meter_2_config,
+        )
+        entities.append(entity)
+    else:
+        entity_config = SajH1MqttSensorEntityConfig(REALTIME_SYSTEM_LOAD_POWER_SENSOR)
+        entity = SajH1MqttSensorEntity(coordinator_realtime_data, entity_config)
+        entities.append(entity)
 
-    # System load state sensor
-    entity_config = SajH1MqttSensorEntityConfig(SYSTEM_LOAD_STATE_SENSOR)
-    entity = SajH1MqttSystemLoadStateSensorEntity(
-        coordinator_realtime_data, entity_config
-    )
-    entities.append(entity)
+    # Custom state sensors (based on realtime data)
 
     # Solar state sensor
     entity_config = SajH1MqttSensorEntityConfig(SOLAR_STATE_SENSOR)
@@ -352,8 +383,20 @@ async def async_setup_entry(
     entities.append(entity)
 
     # Grid state sensor
-    entity_config = SajH1MqttSensorEntityConfig(GRID_STATE_SENSOR)
+    config_tuple = (
+        ACCURATE_GRID_STATE_SENSOR
+        if use_accurate_realtime_power_data
+        else GRID_STATE_SENSOR
+    )
+    entity_config = SajH1MqttSensorEntityConfig(config_tuple)
     entity = SajH1MqttGridStateSensorEntity(coordinator_realtime_data, entity_config)
+    entities.append(entity)
+
+    # System load state sensor
+    entity_config = SajH1MqttSensorEntityConfig(SYSTEM_LOAD_STATE_SENSOR)
+    entity = SajH1MqttSystemLoadStateSensorEntity(
+        coordinator_realtime_data, entity_config
+    )
     entities.append(entity)
 
     # Add the entities
@@ -415,10 +458,10 @@ class SajH1MqttBatteryStateSensorEntity(SajH1MqttSensorEntity):
         """Convert the native value."""
         if value is None:
             return None
-        if value < 0:
-            return BatteryState.CHARGING.value
         if value > 0:
             return BatteryState.DISCHARGING.value
+        if value < 0:
+            return BatteryState.CHARGING.value
         return BatteryState.STANDBY.value
 
 
@@ -431,8 +474,45 @@ class SajH1MqttGridStateSensorEntity(SajH1MqttSensorEntity):
         """Convert the native value."""
         if value is None:
             return None
-        if value < 0:
-            return GridState.IMPORTING.value
         if value > 0:
+            return GridState.IMPORTING.value
+        if value < 0:
             return GridState.EXPORTING.value
         return GridState.STANDBY.value
+
+
+class SajH1MqttRealtimeSystemLoadPowerSensorEntity(SajH1MqttSensorEntity):
+    """SAJ H1 MQTT realtime system load power sensor entity.
+
+    This custom sensor uses the value of 2 other sensors to calculate the final value.
+    """
+
+    def __init__(
+        self,
+        coordinator: SajH1MqttDataCoordinator,
+        entity_config: SajH1MqttEntityConfig,
+        smart_meter_1_config: SajH1MqttEntityConfig,
+        smart_meter_2_config: SajH1MqttEntityConfig,
+    ) -> None:
+        """Initialize the entity."""
+        super().__init__(coordinator, entity_config)
+        self._smart_meter_1 = SajH1MqttSensorEntity(coordinator, smart_meter_1_config)
+        self._smart_meter_2 = SajH1MqttSensorEntity(coordinator, smart_meter_2_config)
+
+    def _get_smart_meter_1_power(self) -> int | float:
+        """Get the smart meter 1 power sensor value."""
+        val = self._smart_meter_1.native_value
+        return val if val else 0.0
+
+    def _get_smart_meter_2_power(self) -> int | float:
+        """Get the smart meter 2 power sensor value."""
+        val = self._smart_meter_2.native_value
+        return val if val else 0.0
+
+    def _convert_native_value(
+        self, value: float | str | None
+    ) -> int | float | str | None:
+        """Convert the native value."""
+        if value is None:
+            return None
+        return value + self._get_smart_meter_1_power() + self._get_smart_meter_2_power()

@@ -23,6 +23,7 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
+    CONF_ENABLE_ACCURATE_REALTIME_POWER_DATA,
     CONF_ENABLE_MQTT_DEBUG,
     CONF_ENABLE_SERIAL_NUMBER_PREFIX,
     CONF_SCAN_INTERVAL_BATTERY_CONTROLLER_DATA,
@@ -115,6 +116,10 @@ OPTIONS_SCHEMA = vol.Schema(
         ),
         vol.Optional(
             CONF_ENABLE_SERIAL_NUMBER_PREFIX,
+            default=False,
+        ): BooleanSelector(),
+        vol.Optional(
+            CONF_ENABLE_ACCURATE_REALTIME_POWER_DATA,
             default=False,
         ): BooleanSelector(),
         vol.Optional(

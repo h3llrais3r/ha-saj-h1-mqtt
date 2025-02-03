@@ -19,8 +19,9 @@ CONF_SCAN_INTERVAL_INVERTER_DATA = "scan_interval_inverter_data"
 CONF_SCAN_INTERVAL_BATTERY_DATA = "scan_interval_battery_data"
 CONF_SCAN_INTERVAL_BATTERY_CONTROLLER_DATA = "scan_interval_battery_controller_data"
 CONF_SCAN_INTERVAL_CONFIG_DATA = "scan_interval_config_data"
-CONF_ENABLE_MQTT_DEBUG = "enable_mqtt_debug"
 CONF_ENABLE_SERIAL_NUMBER_PREFIX = "enable_serial_number_prefix"
+CONF_ENABLE_ACCURATE_REALTIME_POWER_DATA = "enable_accurate_realtime_power_data"
+CONF_ENABLE_MQTT_DEBUG = "enable_mqtt_debug"
 
 # Service constants
 SERVICE_READ_REGISTER = "read_register"

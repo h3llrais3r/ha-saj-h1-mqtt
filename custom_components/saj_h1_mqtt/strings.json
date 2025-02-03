@@ -25,6 +25,7 @@
           "scan_interval_battery_controller_data": "Battery controller data scan interval (0=disabled)",
           "scan_interval_config_data": "Config data scan interval (0=disabled)",
           "enable_serial_number_prefix": "Include serial number in sensor names",
+          "enable_accurate_realtime_power_data": "Enable accurate realtime power data",
           "enable_mqtt_debug": "Enable MQTT debugging"
         },
         "title": "SAJ H1 solar inverter options"
