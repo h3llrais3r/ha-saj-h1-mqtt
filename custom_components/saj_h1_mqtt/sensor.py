@@ -210,10 +210,10 @@ MAP_SAJ_CONFIG_DATA = (
 )
 
 # Custom sensors (based on realtime data)
+SYSTEM_LOAD_STATE_SENSOR = ("system_load_state", 0x140, ">H", 1.0, None, None, None, True)
 SOLAR_STATE_SENSOR = ("solar_state", 0x14a, ">H", 1.0, None, None, None, True)
 BATTERY_STATE_SENSOR = ("battery_state", 0x14c, ">h", 1.0, None, None, None, True)
 GRID_STATE_SENSOR = ("grid_state", 0x15a, ">h", 1.0, None, None, None, True)
-SYSTEM_LOAD_SENSOR = ("system_load_state", 0x140, ">H", 1.0, None, None, None, True)
 
 # fmt: on
 
@@ -305,6 +305,13 @@ async def async_setup_entry(
 
     # Custom realtime data sensors
 
+    # System load state sensor
+    entity_config = SajH1MqttSensorEntityConfig(SYSTEM_LOAD_STATE_SENSOR)
+    entity = SajH1MqttSystemLoadStateSensorEntity(
+        coordinator_realtime_data, entity_config
+    )
+    entities.append(entity)
+
     # Solar state sensor
     entity_config = SajH1MqttSensorEntityConfig(SOLAR_STATE_SENSOR)
     entity = SajH1MqttSolarStateSensorEntity(coordinator_realtime_data, entity_config)
@@ -318,13 +325,6 @@ async def async_setup_entry(
     # Grid state sensor
     entity_config = SajH1MqttSensorEntityConfig(GRID_STATE_SENSOR)
     entity = SajH1MqttGridStateSensorEntity(coordinator_realtime_data, entity_config)
-    entities.append(entity)
-
-    # System load sensor
-    entity_config = SajH1MqttSensorEntityConfig(SYSTEM_LOAD_SENSOR)
-    entity = SajH1MqttSystemLoadStateSensorEntity(
-        coordinator_realtime_data, entity_config
-    )
     entities.append(entity)
 
     # Add the entities
@@ -347,6 +347,20 @@ class SajH1MqttSensorEntity(SajH1MqttEntity, SensorEntity):
     def native_value(self) -> int | float | str | None:
         """Return the native value to represent the entity state."""
         return self._get_native_value()
+
+
+class SajH1MqttSystemLoadStateSensorEntity(SajH1MqttSensorEntity):
+    """SAJ H1 MQTT system load state sensor entity."""
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the native value to represent the entity state."""
+        val = self._get_native_value()
+        if val is None:
+            return None
+        if val > 0:
+            return SystemLoadState.CONSUMING.value
+        return SystemLoadState.STANDBY.value
 
 
 class SajH1MqttSolarStateSensorEntity(SajH1MqttSensorEntity):
@@ -393,17 +407,3 @@ class SajH1MqttGridStateSensorEntity(SajH1MqttSensorEntity):
         if val > 0:
             return GridState.EXPORTING.value
         return GridState.STANDBY.value
-
-
-class SajH1MqttSystemLoadStateSensorEntity(SajH1MqttSensorEntity):
-    """SAJ H1 MQTT system load state sensor entity."""
-
-    @property
-    def native_value(self) -> str | None:
-        """Return the native value to represent the entity state."""
-        val = self._get_native_value()
-        if val is None:
-            return None
-        if val > 0:
-            return SystemLoadState.CONSUMING.value
-        return SystemLoadState.STANDBY.value
