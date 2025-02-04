@@ -14,7 +14,6 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.selector import ConfigEntrySelector
 
 from .const import (
-    ATTR_APP_MODE,
     ATTR_CONFIG_ENTRY,
     ATTR_REGISTER,
     ATTR_REGISTER_FORMAT,
@@ -22,15 +21,12 @@ from .const import (
     ATTR_REGISTER_VALUE,
     DOMAIN,
     LOGGER,
-    MODBUS_REG_APP_MODE,
     SERVICE_READ_REGISTER,
     SERVICE_REFRESH_BATTERY_CONTROLLER_DATA,
     SERVICE_REFRESH_BATTERY_DATA,
     SERVICE_REFRESH_CONFIG_DATA,
     SERVICE_REFRESH_INVERTER_DATA,
-    SERVICE_SET_APP_MODE,
     SERVICE_WRITE_REGISTER,
-    AppMode,
 )
 from .types import SajH1MqttConfigEntry
 
@@ -214,41 +210,15 @@ def async_register_services(hass: HomeAssistant) -> None:
             ),
         )
 
-    async def set_app_mode(call: ServiceCall) -> None:
-        LOGGER.debug("Setting app mode")
-        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY, None))
-        mqtt_client = entry.runtime_data.mqtt_client
-        app_mode = AppMode[call.data[ATTR_APP_MODE]].value
-        await mqtt_client.write_register(MODBUS_REG_APP_MODE, app_mode)
-
-    if not hass.services.has_service(DOMAIN, SERVICE_SET_APP_MODE):
-        LOGGER.debug(f"Registering service: {SERVICE_SET_APP_MODE}")
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_SET_APP_MODE,
-            set_app_mode,
-            schema=vol.Schema(
-                vol.All(
-                    {
-                        vol.Optional(ATTR_CONFIG_ENTRY): ConfigEntrySelector(),
-                        vol.Required(ATTR_APP_MODE): vol.All(
-                            cv.string, vol.In([e.name for e in AppMode])
-                        ),
-                    }
-                )
-            ),
-        )
-
 
 def async_remove_services(hass: HomeAssistant) -> None:
-    # Remove all services
+    """Remove all services."""
     hass.services.async_remove(DOMAIN, SERVICE_READ_REGISTER)
     hass.services.async_remove(DOMAIN, SERVICE_WRITE_REGISTER)
     hass.services.async_remove(DOMAIN, SERVICE_REFRESH_INVERTER_DATA)
     hass.services.async_remove(DOMAIN, SERVICE_REFRESH_BATTERY_DATA)
     hass.services.async_remove(DOMAIN, SERVICE_REFRESH_BATTERY_CONTROLLER_DATA)
     hass.services.async_remove(DOMAIN, SERVICE_REFRESH_CONFIG_DATA)
-    hass.services.async_remove(DOMAIN, SERVICE_SET_APP_MODE)
 
 
 def _get_config_entry(

@@ -106,24 +106,3 @@ refresh_config_data:
       selector:
         config_entry:
           integration: saj_h1_mqtt
-
-# Set the inverter app mode
-set_app_mode:
-  description: Set the inverter app mode
-  fields:
-    config_entry:
-      name: Device
-      description: SAJ H1 solar inverter, defaults to the first configured device if not specified
-      required: false
-      selector:
-        config_entry:
-          integration: saj_h1_mqtt
-    app_mode:
-      required: true
-      selector:
-        select:
-          options:
-            - "SELF_USE"
-            - "TIME_OF_USE"
-            - "BACKUP"
-            - "PASSIVE"
