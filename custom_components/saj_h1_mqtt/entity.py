@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from struct import unpack_from
 from typing import Any
 
@@ -24,8 +24,11 @@ from .const import (
 from .coordinator import SajH1MqttDataCoordinator
 
 
-class SajH1MqttEntityConfig:
-    """SAJ H1 MQTT entity configuration."""
+class SajH1MqttEntityConfig(ABC):
+    """SAJ H1 MQTT entity configuration.
+
+    This is the base abstract class for all entity configuration classes.
+    """
 
     def __init__(self, config_tuple) -> None:
         """Initialize the entity configuration."""
@@ -50,8 +53,11 @@ class SajH1MqttEntityConfig:
         self.enabled_default: bool = enabled_default
 
 
-class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity):
-    """SAJ H1 MQTT entity."""
+class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
+    """SAJ H1 MQTT entity.
+
+    This is the base abstract class for all entity classes.
+    """
 
     def __init__(
         self,
@@ -79,10 +85,8 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity):
             else f"{BRAND}_{MODEL_SHORT}"
         )
 
-        # Set entity attributes (TODO: check if we need to suffix the unique_id with _{self._entity_type})
-        self._attr_unique_id = (
-            f"{self._unique_id_prefix}_{entity_config.entity_name}".lower()
-        )
+        # Set entity attributes (use _entity_type in _attr_unique_id to support sensors with same name, but different type)
+        self._attr_unique_id = f"{self._unique_id_prefix}_{entity_config.entity_name}_{self._entity_type}".lower()
         self._attr_name = f"{self._name_prefix}_{entity_config.entity_name}".lower()
         self._attr_device_class = entity_config.device_class
         # Clear state class when device class is ENUM
