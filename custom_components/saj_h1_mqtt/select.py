@@ -15,7 +15,7 @@ from .types import SajH1MqttConfigEntry
 
 # fmt: off
 
-# Sensor description format:
+# Entity description format:
 # (name, offset, data_type, scale, unit, device_class, state_class, enabled_default)
 APP_MODE = ("app_mode", 0, ">H", None, None, SensorDeviceClass.ENUM, AppMode, True)
 
