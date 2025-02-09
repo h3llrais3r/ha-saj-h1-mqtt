@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
+from collections.abc import Callable
+from dataclasses import dataclass
 from struct import unpack_from
-from typing import Any
 
-from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity import Entity, EntityDescription
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
@@ -24,33 +24,16 @@ from .const import (
 from .coordinator import SajH1MqttDataCoordinator
 
 
-class SajH1MqttEntityConfig(ABC):
-    """SAJ H1 MQTT entity configuration.
+@dataclass(frozen=True, kw_only=True)
+class SajH1MqttEntityDescription(EntityDescription):
+    """A class that describes SAJ H1 MQTT entities."""
 
-    This is the base abstract class for all entity configuration classes.
-    """
-
-    def __init__(self, config_tuple) -> None:
-        """Initialize the entity configuration."""
-        (
-            entity_name,
-            offset,
-            data_type,
-            scale,
-            unit,
-            device_class,
-            state_class,
-            enabled_default,
-        ) = config_tuple
-        # Assign fields from config tuple
-        self.entity_name: str = entity_name
-        self.offset: int = offset
-        self.data_type: str = data_type
-        self.scale: float | str | None = scale
-        self.unit: str | None = unit
-        self.device_class: Any | None = device_class
-        self.state_class: Any | None = state_class
-        self.enabled_default: bool = enabled_default
+    # Modbus register details for reading from coordinator
+    modbus_register_offset: int
+    modbus_register_data_type: str
+    modbus_register_scale: float | str | None
+    # Custom value function
+    value_fn: Callable[[], int | float | str | None] | None
 
 
 class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
@@ -62,16 +45,19 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
     def __init__(
         self,
         coordinator: SajH1MqttDataCoordinator,
-        entity_config: SajH1MqttEntityConfig,
+        description: SajH1MqttEntityDescription | None = None,
     ) -> None:
         """Initialize the entity."""
         super().__init__(coordinator)
-        # Copy attributes from entity config
-        self._entity_config = entity_config
-        self._offset = entity_config.offset
-        self._data_type = entity_config.data_type
-        self._scale = entity_config.scale
-        self._unit = entity_config.unit
+
+        # Do not remove this assignment, used internally in hass
+        self.entity_description: SajH1MqttEntityDescription = description
+
+        # Copy values from entity description
+        self._offset = description.modbus_register_offset
+        self._data_type = description.modbus_register_data_type
+        self._scale = description.modbus_register_scale
+        self._value_fn = description.value_fn
 
         # Define entity prefixes
         self._serial_number = coordinator.config_entry.data[CONF_SERIAL_NUMBER]
@@ -85,29 +71,11 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
             else f"{BRAND}_{MODEL_SHORT}"
         )
 
-        # Set entity attributes (use _entity_type in _attr_unique_id to support sensors with same name, but different type)
-        self._attr_unique_id = f"{self._unique_id_prefix}_{entity_config.entity_name}_{self._entity_type}".lower()
-        self._attr_name = f"{self._name_prefix}_{entity_config.entity_name}".lower()
-        self._attr_device_class = entity_config.device_class
-        # Clear state class when device class is ENUM
-        self._attr_state_class = (
-            entity_config.state_class
-            if entity_config.device_class is not SensorDeviceClass.ENUM
-            else None
+        # Set entity attributes (use _entity_type in _attr_unique_id to support sensors with same key, but different type)
+        self._attr_unique_id = (
+            f"{self._unique_id_prefix}_{description.key}_{self._entity_type}".lower()
         )
-        self._attr_native_unit_of_measurement = entity_config.unit
-        # Use state class as enum class when device class is ENUM
-        self.enum_class = (
-            entity_config.state_class
-            if entity_config.device_class is SensorDeviceClass.ENUM
-            else None
-        )
-        # Set options as enum names when device class is ENUM
-        self._attr_options = (
-            [e.name for e in self.enum_class] if self.enum_class else None
-        )
-        self._attr_entity_registry_enabled_default = entity_config.enabled_default
-        # Set device info
+        self._attr_name = f"{self._name_prefix}_{description.key}".lower()
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._serial_number)},
             name=f"{BRAND} {self._serial_number}",
@@ -118,12 +86,13 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
 
         LOGGER.debug(f"Setting up entity: {self.name}")
 
-    def _convert_native_value(
+    def _custom_native_value(
         self, value: float | str | None
     ) -> int | float | str | None:
-        """Convert the native value.
+        """Return the custom native value to represent the entity state.
 
-        To be replaced by classes who want to have custom conversion logic.
+        Returns by default the native value from the coordinator.
+        To be replaced by classes who want to have custom logic.
         """
         return value
 
@@ -140,7 +109,11 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
             reg_length = int(self._data_type.replace(">S", ""))
             value = bytearray.decode(payload[self._offset : self._offset + reg_length])
         else:
-            (value,) = unpack_from(self._data_type, payload, self._offset)
+            (value,) = unpack_from(
+                self._data_type,
+                payload,
+                self._offset,
+            )
 
         # Set sensor value (taking scale into account, scale should ALWAYS contain a .)
         if self._scale is not None:
@@ -150,16 +123,20 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
             if isinstance(self._scale, str):
                 value = "{:.{precision}f}".format(value, precision=digits)
 
-        # Convert enum sensor to the corresponding enum name
-        if self.enum_class:
-            value = self.enum_class(value).name
+        # Value conversion function
+        if self._value_fn:
+            value = self._value_fn(value)
 
-        # Custom conversion
-        value = self._convert_native_value(value)
+        # Custom native value implementation
+        value = self._custom_native_value(value)
 
-        LOGGER.debug(
-            f"Entity: {self.entity_id}, value: {value}{' ' + self._unit if self._unit else ''}"
-        )
+        if self.entity_id:
+            LOGGER.debug(
+                f"Entity: {self.entity_id}, value: {value}{' ' + self.unit_of_measurement if self.unit_of_measurement else ''}"
+            )
+        else:
+            # Used for internal entities (no entity_id)
+            LOGGER.debug(f"-> Internal entity: {self.name}, value: {value}")
 
         return value
 
@@ -167,3 +144,16 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
     @abstractmethod
     def _entity_type(self) -> str:
         pass
+
+
+def get_entity_description(
+    descriptions: tuple[EntityDescription], key: str
+) -> EntityDescription | None:
+    """Get an entity description by its 'key' from a tuple of entity descriptions."""
+    description = next(
+        (d for d in descriptions if d.key == key),
+        None,
+    )
+    if description is None:
+        raise ValueError(f"Invalid entity description key: {key}")
+    return description

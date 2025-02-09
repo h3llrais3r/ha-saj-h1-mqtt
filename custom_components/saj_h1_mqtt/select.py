@@ -3,23 +3,39 @@
 from __future__ import annotations
 
 from abc import ABC
+from dataclasses import dataclass
 
-from homeassistant.components.select import SelectEntity
-from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.components.select import SelectEntity, SelectEntityDescription
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import LOGGER, MODBUS_REG_APP_MODE, AppMode
-from .entity import SajH1MqttEntity, SajH1MqttEntityConfig
+from .coordinator import SajH1MqttDataCoordinator
+from .entity import SajH1MqttEntity, SajH1MqttEntityDescription
 from .types import SajH1MqttConfigEntry
 
-# fmt: off
 
-# Entity description format:
-# (name, offset, data_type, scale, unit, device_class, state_class, enabled_default)
-APP_MODE = ("app_mode", 0, ">H", None, None, SensorDeviceClass.ENUM, AppMode, True)
+@dataclass(frozen=True, kw_only=True)
+class SajH1MqttSelectEntityDescription(
+    SelectEntityDescription, SajH1MqttEntityDescription
+):
+    """A class that describes SAJ H1 MQTT select entities."""
 
-# fmt: on
+    modbus_register: int  # register for writing
+
+
+APP_MODE_SELECT_DESCRIPTION = SajH1MqttSelectEntityDescription(
+    key="app_mode",
+    entity_category=EntityCategory.CONFIG,
+    entity_registry_enabled_default=True,
+    options=[x.name for x in AppMode],
+    modbus_register_offset=0,
+    modbus_register_data_type=">H",
+    modbus_register_scale=None,
+    value_fn=lambda x: AppMode(x).name,
+    modbus_register=MODBUS_REG_APP_MODE,
+)
 
 
 async def async_setup_entry(
@@ -36,8 +52,9 @@ async def async_setup_entry(
     entities: list[SajH1MqttEntity] = []
 
     # Add app mode
-    entity_config = SajH1MqttSelectEntityConfig(APP_MODE)
-    entity = SajH1MqttAppModeSelectEntity(coordinator_config_data, entity_config)
+    entity = SajH1MqttAppModeSelectEntity(
+        coordinator_config_data, APP_MODE_SELECT_DESCRIPTION
+    )
     entities.append(entity)
 
     # Add the entities
@@ -45,15 +62,21 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class SajH1MqttSelectEntityConfig(SajH1MqttEntityConfig):
-    """SAJ H1 MQTT select entity configuration."""
-
-
 class SajH1MqttSelectEntity(SajH1MqttEntity, SelectEntity, ABC):
     """SAJ H1 MQTT select entity.
 
     This is the base abstract class for all select entity classes.
     """
+
+    def __init__(
+        self,
+        coordinator: SajH1MqttDataCoordinator,
+        description: SajH1MqttSelectEntityDescription,
+    ) -> None:
+        """Initialize the entity."""
+        super().__init__(coordinator, description)
+        # Custom fields from entity description
+        self._register = description.modbus_register
 
     @property
     def _entity_type(self) -> str:
@@ -77,5 +100,5 @@ class SajH1MqttAppModeSelectEntity(SajH1MqttSelectEntity):
             raise ValueError(f"Invalid option: {option}") from err
 
         # Write register and refresh coordinator
-        await self.coordinator.mqtt_client.write_register(MODBUS_REG_APP_MODE, app_mode)
+        await self.coordinator.mqtt_client.write_register(self._register, app_mode)
         await self.coordinator.async_request_refresh()

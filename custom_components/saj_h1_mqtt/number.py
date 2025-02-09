@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
-from homeassistant.components.number import NumberEntity
-from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
-from homeassistant.const import PERCENTAGE, UnitOfPower
+from dataclasses import dataclass
+
+from homeassistant.components.number import (
+    NumberDeviceClass,
+    NumberEntity,
+    NumberEntityDescription,
+)
+from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfPower
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -17,20 +22,96 @@ from .const import (
     MODBUS_REG_GRID_FEED_POWER_LIMIT,
 )
 from .coordinator import SajH1MqttDataCoordinator
-from .entity import SajH1MqttEntity, SajH1MqttEntityConfig
+from .entity import SajH1MqttEntity, SajH1MqttEntityDescription
 from .types import SajH1MqttConfigEntry
 
-# fmt: off
 
-# Entity description format:
-# (name, offset, data_type, scale, unit, device_class, state_class, enabled_default), (min_value, max_value, step, modbus_register)
-GRID_CHARGE_POWER_LIMIT =("grid_charge_power_limit", 2, ">H", None, UnitOfPower.WATT, SensorDeviceClass.POWER, SensorStateClass.MEASUREMENT, False), (100, 5000, 100, MODBUS_REG_GRID_CHARGE_POWER_LIMIT)
-GRID_FEED_POWER_LIMIT=("grid_feed_power_limit", 4, ">H", None, UnitOfPower.WATT, SensorDeviceClass.POWER, SensorStateClass.MEASUREMENT, False), (100, 5000, 100, MODBUS_REG_GRID_FEED_POWER_LIMIT)
-BATTERY_SOC_BACKUP = ("battery_soc_backup", 84, ">H", None, PERCENTAGE, SensorDeviceClass.BATTERY, SensorStateClass.MEASUREMENT, True), (10, 100, 1, MODBUS_REG_BATTERY_SOC_BACKUP)
-BATTERY_SOC_HIGH = ("battery_soc_high", 88, ">H", None, PERCENTAGE, SensorDeviceClass.BATTERY, SensorStateClass.MEASUREMENT, True), (50, 100, 1, MODBUS_REG_BATTERY_SOC_HIGH)
-BATTERY_SOC_LOW = ("battery_soc_low", 90, ">H", None, PERCENTAGE, SensorDeviceClass.BATTERY, SensorStateClass.MEASUREMENT, True), (10, 50, 1, MODBUS_REG_BATTERY_SOC_LOW)
+@dataclass(frozen=True, kw_only=True)
+class SajH1MqttNumberEntityDescription(
+    NumberEntityDescription, SajH1MqttEntityDescription
+):
+    """A class that describes SAJ H1 MQTT number entities."""
 
-# fmt: on
+    modbus_register: int  # register for writing
+
+
+NUMBER_ENTITY_DESCRIPTIONS = (
+    SajH1MqttNumberEntityDescription(
+        key="grid_charge_power_limit",
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
+        device_class=NumberDeviceClass.POWER,
+        native_unit_of_measurement=UnitOfPower.WATT,
+        native_min_value=100,
+        native_max_value=5000,
+        native_step=100,
+        modbus_register_offset=2,
+        modbus_register_data_type=">H",
+        modbus_register_scale=None,
+        value_fn=None,
+        modbus_register=MODBUS_REG_GRID_CHARGE_POWER_LIMIT,
+    ),
+    SajH1MqttNumberEntityDescription(
+        key="grid_feed_power_limit",
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
+        device_class=NumberDeviceClass.POWER,
+        native_unit_of_measurement=UnitOfPower.WATT,
+        native_min_value=100,
+        native_max_value=5000,
+        native_step=100,
+        modbus_register_offset=4,
+        modbus_register_data_type=">H",
+        modbus_register_scale=None,
+        value_fn=None,
+        modbus_register=MODBUS_REG_GRID_FEED_POWER_LIMIT,
+    ),
+    SajH1MqttNumberEntityDescription(
+        key="battery_soc_backup",
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=True,
+        device_class=NumberDeviceClass.BATTERY,
+        native_unit_of_measurement=PERCENTAGE,
+        native_min_value=10,
+        native_max_value=100,
+        native_step=1,
+        modbus_register_offset=84,
+        modbus_register_data_type=">H",
+        modbus_register_scale=None,
+        value_fn=None,
+        modbus_register=MODBUS_REG_BATTERY_SOC_BACKUP,
+    ),
+    SajH1MqttNumberEntityDescription(
+        key="battery_soc_high",
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=True,
+        device_class=NumberDeviceClass.BATTERY,
+        native_unit_of_measurement=PERCENTAGE,
+        native_min_value=50,
+        native_max_value=100,
+        native_step=1,
+        modbus_register_offset=88,
+        modbus_register_data_type=">H",
+        modbus_register_scale=None,
+        value_fn=None,
+        modbus_register=MODBUS_REG_BATTERY_SOC_HIGH,
+    ),
+    SajH1MqttNumberEntityDescription(
+        key="battery_soc_low",
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=True,
+        device_class=NumberDeviceClass.BATTERY,
+        native_unit_of_measurement=PERCENTAGE,
+        native_min_value=10,
+        native_max_value=50,
+        native_step=1,
+        modbus_register_offset=90,
+        modbus_register_data_type=">H",
+        modbus_register_scale=None,
+        value_fn=None,
+        modbus_register=MODBUS_REG_BATTERY_SOC_LOW,
+    ),
+)
 
 
 async def async_setup_entry(
@@ -46,56 +127,14 @@ async def async_setup_entry(
 
     entities: list[SajH1MqttEntity] = []
 
-    # Add grid charge power limit
-    entity_config = SajH1MqttNumberEntityConfig(
-        GRID_CHARGE_POWER_LIMIT[0], GRID_CHARGE_POWER_LIMIT[1]
-    )
-    entity = SajH1MqttNumberEntity(coordinator_config_data, entity_config)
-    entities.append(entity)
-
-    # Add grid feed power limit
-    entity_config = SajH1MqttNumberEntityConfig(
-        GRID_FEED_POWER_LIMIT[0], GRID_FEED_POWER_LIMIT[1]
-    )
-    entity = SajH1MqttNumberEntity(coordinator_config_data, entity_config)
-    entities.append(entity)
-
-    # Add battery soc backup
-    entity_config = SajH1MqttNumberEntityConfig(
-        BATTERY_SOC_BACKUP[0], BATTERY_SOC_BACKUP[1]
-    )
-    entity = SajH1MqttNumberEntity(coordinator_config_data, entity_config)
-    entities.append(entity)
-
-    # Add battery soc high
-    entity_config = SajH1MqttNumberEntityConfig(
-        BATTERY_SOC_HIGH[0], BATTERY_SOC_HIGH[1]
-    )
-    entity = SajH1MqttNumberEntity(coordinator_config_data, entity_config)
-    entities.append(entity)
-
-    # Add battery soc low
-    entity_config = SajH1MqttNumberEntityConfig(BATTERY_SOC_LOW[0], BATTERY_SOC_LOW[1])
-    entity = SajH1MqttNumberEntity(coordinator_config_data, entity_config)
-    entities.append(entity)
+    # Add all number entities
+    for description in NUMBER_ENTITY_DESCRIPTIONS:
+        entity = SajH1MqttNumberEntity(coordinator_config_data, description)
+        entities.append(entity)
 
     # Add the entities
     LOGGER.info(f"Setting up {len(entities)} number entities")
     async_add_entities(entities)
-
-
-class SajH1MqttNumberEntityConfig(SajH1MqttEntityConfig):
-    """SAJ H1 MQTT number entity configuration."""
-
-    def __init__(self, config_tuple, extra_config_tuple) -> None:
-        """Initialize the number entity configuration."""
-        super().__init__(config_tuple)
-        (min_value, max_value, step, modbus_register) = extra_config_tuple
-        # Assign fields from extra config tuple
-        self.min_value: float = min_value
-        self.max_value: float = max_value
-        self.step: float = step
-        self.modbus_register: int = modbus_register
 
 
 class SajH1MqttNumberEntity(SajH1MqttEntity, NumberEntity):
@@ -104,15 +143,13 @@ class SajH1MqttNumberEntity(SajH1MqttEntity, NumberEntity):
     def __init__(
         self,
         coordinator: SajH1MqttDataCoordinator,
-        entity_config: SajH1MqttNumberEntityConfig,
+        description: SajH1MqttNumberEntityDescription,
     ) -> None:
         """Initialize the entity."""
-        super().__init__(coordinator, entity_config)
-        # Set extra entity attributes
-        self._attr_native_min_value = entity_config.min_value
-        self.native_max_value = entity_config.max_value
-        self.native_step = entity_config.step
-        self.modbus_register = entity_config.modbus_register
+        super().__init__(coordinator, description)
+
+        # Custom fields from entity description
+        self._register = description.modbus_register
 
     @property
     def _entity_type(self) -> str:
@@ -132,6 +169,6 @@ class SajH1MqttNumberEntity(SajH1MqttEntity, NumberEntity):
 
         # Write register and refresh coordinator
         await self.coordinator.mqtt_client.write_register(
-            self.modbus_register, register_value
+            self._register, register_value
         )
         await self.coordinator.async_request_refresh()
