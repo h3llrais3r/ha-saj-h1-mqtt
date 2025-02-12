@@ -48,7 +48,7 @@ class SajH1MqttSensorEntityDescription(
 # fmt: off
 
 # realtime data sensors
-SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS = (
+SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS: tuple[SajH1MqttSensorEntityDescription, ...] = (
     # General info
     # SajH1MqttSensorEntityDescription(key="year", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=None),
     # SajH1MqttSensorEntityDescription(key="month", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=2, modbus_register_data_type=">B", modbus_register_scale=None, value_fn=None),
@@ -116,7 +116,7 @@ SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS = (
 )
 
 # realtime data energy statistics sensors
-SAJ_REALTIME_DATA_ENERGY_STATS_SENSOR_DESCRIPTIONS = (
+SAJ_REALTIME_DATA_ENERGY_STATS_SENSOR_DESCRIPTIONS: tuple[SajH1MqttSensorEntityDescription, ...] = (
     SajH1MqttSensorEntityDescription(key="energy_photovoltaic", entity_registry_enabled_default=True, device_class=SensorDeviceClass.ENERGY, state_class=SensorStateClass.TOTAL_INCREASING, native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR, modbus_register_offset=0x17e, modbus_register_data_type=">I", modbus_register_scale=0.01, value_fn=None),
     SajH1MqttSensorEntityDescription(key="energy_battery_charged", entity_registry_enabled_default=True, device_class=SensorDeviceClass.ENERGY, state_class=SensorStateClass.TOTAL_INCREASING, native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR, modbus_register_offset=0x18e, modbus_register_data_type=">I", modbus_register_scale=0.01, value_fn=None),
     SajH1MqttSensorEntityDescription(key="energy_battery_discharged", entity_registry_enabled_default=True, device_class=SensorDeviceClass.ENERGY, state_class=SensorStateClass.TOTAL_INCREASING, native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR, modbus_register_offset=0x19e, modbus_register_data_type=">I", modbus_register_scale=0.01, value_fn=None),
@@ -127,7 +127,7 @@ SAJ_REALTIME_DATA_ENERGY_STATS_SENSOR_DESCRIPTIONS = (
 )
 
 # inverter data sensors
-SAJ_INVERTER_DATA_SENSOR_DESCRIPTIONS = (
+SAJ_INVERTER_DATA_SENSOR_DESCRIPTIONS: tuple[SajH1MqttSensorEntityDescription, ...] = (
     SajH1MqttSensorEntityDescription(key="inverter_type", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=None),
     SajH1MqttSensorEntityDescription(key="inverter_sub_type", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=2, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=None),
     SajH1MqttSensorEntityDescription(key="inverter_comm_pro_version", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=4, modbus_register_data_type=">H", modbus_register_scale=0.001, value_fn=None),
@@ -143,7 +143,7 @@ SAJ_INVERTER_DATA_SENSOR_DESCRIPTIONS = (
 )
 
 # battery data sensors
-SAJ_BATTERY_DATA_SENSOR_DESCRIPTIONS = (
+SAJ_BATTERY_DATA_SENSOR_DESCRIPTIONS: tuple[SajH1MqttSensorEntityDescription, ...] = (
     SajH1MqttSensorEntityDescription(key="battery_1_bms_type", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=None),
     SajH1MqttSensorEntityDescription(key="battery_1_bms_serial_number", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=2, modbus_register_data_type=">S16", modbus_register_scale=None, value_fn=None),
     SajH1MqttSensorEntityDescription(key="battery_1_bms_sw_version", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=18, modbus_register_data_type=">H", modbus_register_scale="0.001", value_fn=None),
@@ -171,7 +171,7 @@ SAJ_BATTERY_DATA_SENSOR_DESCRIPTIONS = (
 )
 
 # battery controller data sensors
-SAJ_BATTERY_CONTROLLER_DATA_SENSOR_DESCRIPTIONS = (
+SAJ_BATTERY_CONTROLLER_DATA_SENSOR_DESCRIPTIONS: tuple[SajH1MqttSensorEntityDescription, ...] = (
     SajH1MqttSensorEntityDescription(key="battery_numbers", entity_registry_enabled_default=True, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=None),
     SajH1MqttSensorEntityDescription(key="battery_capacity", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement="AH", modbus_register_offset=2, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=None),
     SajH1MqttSensorEntityDescription(key="battery_1_fault", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=4, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=None),
@@ -210,7 +210,7 @@ SAJ_BATTERY_CONTROLLER_DATA_SENSOR_DESCRIPTIONS = (
 )
 
 # config data sensors
-SAJ_CONFIG_DATA_SENSOR_DESCRIPTIONS = (
+SAJ_CONFIG_DATA_SENSOR_DESCRIPTIONS: tuple[SajH1MqttSensorEntityDescription, ...] = (
     SajH1MqttSensorEntityDescription(key="app_mode", entity_registry_enabled_default=True, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=lambda x: AppMode(x).name),
     SajH1MqttSensorEntityDescription(key="grid_charge_power_limit", entity_registry_enabled_default=True, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfPower.WATT, modbus_register_offset=2, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=None),
     SajH1MqttSensorEntityDescription(key="grid_feed_power_limit", entity_registry_enabled_default=True, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfPower.WATT, modbus_register_offset=4, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=None),

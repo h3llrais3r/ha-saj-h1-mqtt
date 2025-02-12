@@ -33,7 +33,7 @@ class SajH1MqttEntityDescription(EntityDescription):
     modbus_register_data_type: str
     modbus_register_scale: float | str | None
     # Custom value function
-    value_fn: Callable[[], int | float | str | None] | None
+    value_fn: Callable[[int | float | str | None], int | float | str | None] | None
 
 
 class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):

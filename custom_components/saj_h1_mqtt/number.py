@@ -32,10 +32,10 @@ class SajH1MqttNumberEntityDescription(
 ):
     """A class that describes SAJ H1 MQTT number entities."""
 
-    modbus_register: int  # register for writing
+    modbus_register: int
 
 
-NUMBER_ENTITY_DESCRIPTIONS = (
+NUMBER_ENTITY_DESCRIPTIONS: tuple[SajH1MqttNumberEntityDescription, ...] = (
     SajH1MqttNumberEntityDescription(
         key="grid_charge_power_limit",
         entity_category=EntityCategory.CONFIG,
@@ -149,7 +149,7 @@ class SajH1MqttNumberEntity(SajH1MqttEntity, NumberEntity):
         super().__init__(coordinator, description)
 
         # Custom fields from entity description
-        self._register = description.modbus_register
+        self._modbus_register = description.modbus_register
 
     @property
     def _entity_type(self) -> str:
@@ -163,12 +163,12 @@ class SajH1MqttNumberEntity(SajH1MqttEntity, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Set new value."""
         try:
-            register_value = int(value)  # modbus register value must be int
-        except ValueError as err:
+            modbus_value = int(value)  # modbus register value must be int
+        except Exception as err:
             raise ValueError(f"Invalid value: {value}") from err
 
         # Write register and refresh coordinator
         await self.coordinator.mqtt_client.write_register(
-            self._register, register_value
+            self._modbus_register, modbus_value
         )
         await self.coordinator.async_request_refresh()
