@@ -225,13 +225,13 @@ REALTIME_BATTERY_POWER_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(key
 REALTIME_GRID_POWER_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(key="realtime_grid_power",entity_registry_enabled_default=True, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfPower.WATT, modbus_register_offset=0x15a, modbus_register_data_type=">h", modbus_register_scale=-1.0, value_fn=None) # uses summary_smart_meter_load_power_2 data and -1.0 as scale as we have inverted data
 REALTIME_SYSTEM_LOAD_POWER_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(key="realtime_system_load_power",entity_registry_enabled_default=True, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfPower.WATT, modbus_register_offset=0x140, modbus_register_data_type=">H", modbus_register_scale=1.0, value_fn=None)
 
-# Custom sensors (based on realtime data)
-SOLAR_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(key="solar_state", entity_registry_enabled_default=True, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0x14a, modbus_register_data_type=">H", modbus_register_scale=1.0, value_fn=lambda x: None if x is None else (SolarState.PRODUCING.value if x > 0 else SolarState.STANDBY.value))
-BATTERY_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(key="battery_state", entity_registry_enabled_default=True, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0x14c, modbus_register_data_type=">h", modbus_register_scale=1.0, value_fn=lambda x: None if x is None else (BatteryState.DISCHARGING.value if x > 0 else (BatteryState.CHARGING.value if x < 0 else BatteryState.STANDBY.value)))
-GRID_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(key="grid_state", entity_registry_enabled_default=True, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0x15a, modbus_register_data_type=">h", modbus_register_scale=-1.0, value_fn=lambda x: None if x is None else (GridState.IMPORTING.value if x > 0 else (GridState.EXPORTING.value if x < 0 else GridState.STANDBY.value))) # uses summary_smart_meter_load_power_2 data and -1.0 as scale as we have inverted data
-SYSTEM_LOAD_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(key="system_load_state", entity_registry_enabled_default=True, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0x140, modbus_register_data_type=">H", modbus_register_scale=1.0, value_fn=lambda x: None if x is None else (SystemLoadState.CONSUMING.value if x > 0 else GridState.STANDBY.value))
+# Realtime state sensors (based on realtime data)
+REALTIME_SOLAR_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(key="realtime_solar_state", entity_registry_enabled_default=True, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0x14a, modbus_register_data_type=">H", modbus_register_scale=1.0, value_fn=lambda x: None if x is None else (SolarState.PRODUCING.value if x > 0 else SolarState.STANDBY.value))
+REALTIME_BATTERY_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(key="realtime_battery_state", entity_registry_enabled_default=True, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0x14c, modbus_register_data_type=">h", modbus_register_scale=1.0, value_fn=lambda x: None if x is None else (BatteryState.DISCHARGING.value if x > 0 else (BatteryState.CHARGING.value if x < 0 else BatteryState.STANDBY.value)))
+REALTIME_GRID_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(key="realtime_grid_state", entity_registry_enabled_default=True, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0x15a, modbus_register_data_type=">h", modbus_register_scale=-1.0, value_fn=lambda x: None if x is None else (GridState.IMPORTING.value if x > 0 else (GridState.EXPORTING.value if x < 0 else GridState.STANDBY.value))) # uses summary_smart_meter_load_power_2 data and -1.0 as scale as we have inverted data
+REALTIME_SYSTEM_LOAD_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(key="realtime_system_load_state", entity_registry_enabled_default=True, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0x140, modbus_register_data_type=">H", modbus_register_scale=1.0, value_fn=lambda x: None if x is None else (SystemLoadState.CONSUMING.value if x > 0 else GridState.STANDBY.value))
 
-# Accurate sensors (only used when enabled in config, replaces the original 'realtime_grid_power' and 'grid_state' sensors)
+# Accurate realtime sensors (only used when enabled in config, replaces the original 'realtime_grid_power' and 'realtime_grid_state' sensors)
 # SAJ did some update and is not showing the minimal import/export values from the grid anymore in their esolar app
 # This means that the values of the 'realtime_system_load_power' are slightly adapted to hide those minor import/export values from the grid
 # If we want to get the real accurate values back, we can use the readings from 'summary_smart_meter_load_power_1' sensor
@@ -239,7 +239,7 @@ SYSTEM_LOAD_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(key="sys
 # Formula: 'realtime_system_load_power' = 'summary_system_load_power' + 'summary_smart_meter_load_power_1' + 'summary_smart_meter_load_power_2' (which has inverted scale)
 ACCURATE_REALTIME_GRID_POWER_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(key="realtime_grid_power", entity_registry_enabled_default=True, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfPower.WATT, modbus_register_offset=0x142, modbus_register_data_type=">h", modbus_register_scale=1.0, value_fn=None) # uses summary_smart_meter_load_power_1 data (correct scale)
 ACCURATE_REALTIME_SYSTEM_LOAD_POWER_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(key="realtime_system_load_power", entity_registry_enabled_default=True, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfPower.WATT, modbus_register_offset=None, modbus_register_data_type=None, modbus_register_scale=None, value_fn=None) # custom implementation
-ACCURATE_GRID_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(key="grid_state", entity_registry_enabled_default=True, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0x142, modbus_register_data_type=">h", modbus_register_scale=1.0, value_fn=lambda x: None if x is None else (GridState.IMPORTING.value if x > 0 else (GridState.EXPORTING.value if x < 0 else GridState.STANDBY.value))) # uses summary_smart_meter_load_power_1 data
+ACCURATE_REALTIME_GRID_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(key="realtime_grid_state", entity_registry_enabled_default=True, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0x142, modbus_register_data_type=">h", modbus_register_scale=1.0, value_fn=lambda x: None if x is None else (GridState.IMPORTING.value if x > 0 else (GridState.EXPORTING.value if x < 0 else GridState.STANDBY.value))) # uses summary_smart_meter_load_power_1 data
 
 # fmt: on
 
@@ -375,31 +375,31 @@ async def async_setup_entry(
 
     # Solar state sensor
     entity = SajH1MqttSensorEntity(
-        coordinator_realtime_data, SOLAR_STATE_SENSOR_DESCRIPTION
+        coordinator_realtime_data, REALTIME_SOLAR_STATE_SENSOR_DESCRIPTION
     )
     entities.append(entity)
 
     # Battery state sensor
     entity = SajH1MqttSensorEntity(
-        coordinator_realtime_data, BATTERY_STATE_SENSOR_DESCRIPTION
+        coordinator_realtime_data, REALTIME_BATTERY_STATE_SENSOR_DESCRIPTION
     )
     entities.append(entity)
 
     # Grid state sensor
     if use_accurate_realtime_power_data:
         entity = SajH1MqttSensorEntity(
-            coordinator_realtime_data, ACCURATE_GRID_STATE_SENSOR_DESCRIPTION
+            coordinator_realtime_data, ACCURATE_REALTIME_GRID_STATE_SENSOR_DESCRIPTION
         )
         entities.append(entity)
     else:
         entity = SajH1MqttSensorEntity(
-            coordinator_realtime_data, GRID_STATE_SENSOR_DESCRIPTION
+            coordinator_realtime_data, REALTIME_GRID_STATE_SENSOR_DESCRIPTION
         )
         entities.append(entity)
 
     # System load state sensor
     entity = SajH1MqttSensorEntity(
-        coordinator_realtime_data, SYSTEM_LOAD_STATE_SENSOR_DESCRIPTION
+        coordinator_realtime_data, REALTIME_SYSTEM_LOAD_STATE_SENSOR_DESCRIPTION
     )
     entities.append(entity)
 
