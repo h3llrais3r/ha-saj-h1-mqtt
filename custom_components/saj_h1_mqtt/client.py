@@ -1,4 +1,5 @@
-"""SAJ MQTT inverter client."""
+"""Client for the SAJ H1 MQTT integration."""
+
 from __future__ import annotations
 
 import asyncio
@@ -7,8 +8,6 @@ import contextlib
 from datetime import datetime
 from random import random
 from struct import pack, unpack_from
-
-from pymodbus.utilities import computeCRC
 
 from homeassistant.components import mqtt
 from homeassistant.components.mqtt import ReceiveMessage
@@ -21,23 +20,23 @@ from .const import (
     MODBUS_MAX_REGISTERS_PER_QUERY,
     MODBUS_READ_REQUEST,
     MODBUS_WRITE_REQUEST,
-    SAJ_MQTT_DATA_TRANSMISSION,
-    SAJ_MQTT_DATA_TRANSMISSION_RSP,
-    SAJ_MQTT_DATA_TRANSMISSION_TIMEOUT,
-    SAJ_MQTT_ENCODING,
-    SAJ_MQTT_QOS,
-    SAJ_MQTT_RETAIN,
+    MQTT_DATA_TRANSMISSION,
+    MQTT_DATA_TRANSMISSION_RSP,
+    MQTT_DATA_TRANSMISSION_TIMEOUT,
+    MQTT_ENCODING,
+    MQTT_QOS,
+    MQTT_RETAIN,
 )
-from .utils import debug, log_hex
+from .utils import computeCRC, debug, log_hex
 
 
-class SajMqtt:
-    """SAJ MQTT inverter client instance."""
+class SajH1MqttClient:
+    """SAJ H1 MQTT client instance."""
 
     def __init__(
         self, hass: HomeAssistant, serial_number: str, debug_mqtt: bool
     ) -> None:
-        """Set up the SajMqtt class."""
+        """Set up the SajH1MqttClient class."""
         super().__init__()
 
         self.hass = hass
@@ -45,10 +44,10 @@ class SajMqtt:
         self.serial_number = serial_number
         self.debug_mqtt = debug_mqtt
         self.topic_data_transmission = (
-            f"saj/{self.serial_number}/{SAJ_MQTT_DATA_TRANSMISSION}"
+            f"saj/{self.serial_number}/{MQTT_DATA_TRANSMISSION}"
         )
         self.topic_data_transmission_rsp = (
-            f"saj/{self.serial_number}/{SAJ_MQTT_DATA_TRANSMISSION_RSP}"
+            f"saj/{self.serial_number}/{MQTT_DATA_TRANSMISSION_RSP}"
         )
 
         self.read_responses = OrderedDict()
@@ -56,23 +55,22 @@ class SajMqtt:
 
         self.unsubscribe_callbacks = {}
 
-    async def initialize(self) -> None:
-        """Initialize."""
+    async def connect(self) -> None:
+        """Connect to mqtt."""
         self.unsubscribe_callbacks = await self._subscribe_topics()
 
-    async def deinitialize(self) -> None:
-        """Deinitialize.
-
-        Currently not used, as we set up via async_setup_platform(), which doesn't support unloading
-        """
-        for unsubscribe_callback in self.unsubscribe_callbacks.values():
-            await unsubscribe_callback()
+    async def disconnect(self) -> None:
+        """Disconnect from mqtt."""
+        for topic, unsubscribe_callback in self.unsubscribe_callbacks.items():
+            # Unsubscribe callbacks are not async, so no need to await for them
+            debug(f"Unsubscribing from topic: {topic}")
+            unsubscribe_callback()
 
     async def read_registers(
         self,
         register_start: int,
         register_count: int,
-        timeout: int = SAJ_MQTT_DATA_TRANSMISSION_TIMEOUT,
+        timeout: int = MQTT_DATA_TRANSMISSION_TIMEOUT,
     ) -> bytearray | None:
         """Read 1 or more registers from the inverter.
 
@@ -108,9 +106,9 @@ class SajMqtt:
                         self.hass,
                         self.topic_data_transmission,
                         packet,
-                        qos=SAJ_MQTT_QOS,
-                        retain=SAJ_MQTT_RETAIN,
-                        encoding=SAJ_MQTT_ENCODING,
+                        qos=MQTT_QOS,
+                        retain=MQTT_RETAIN,
+                        encoding=MQTT_ENCODING,
                     )
                 debug("All packets published", self.debug_mqtt)
 
@@ -134,15 +132,14 @@ class SajMqtt:
                 data = bytearray()
                 for response in responses.values():
                     data += response
-
-        except asyncio.TimeoutError:
+        except TimeoutError:
             LOGGER.warning(
                 "Timeout error: the inverter did not answer in the expected timeout"
             )
             data = None
         except HomeAssistantError as ex:
             LOGGER.warning(
-                f"Could not publish {SAJ_MQTT_DATA_TRANSMISSION} packets, reason: {ex}"
+                f"Could not publish {MQTT_DATA_TRANSMISSION} packets, reason: {ex}"
             )
             data = None
 
@@ -157,7 +154,7 @@ class SajMqtt:
         self,
         register: int,
         value: int,
-        timeout: int = SAJ_MQTT_DATA_TRANSMISSION_TIMEOUT,
+        timeout: int = MQTT_DATA_TRANSMISSION_TIMEOUT,
     ) -> int | None:
         """Write a register value to the inverter."""
         debug(f"Writing register {log_hex(register)} with value {log_hex(value)}")
@@ -176,9 +173,9 @@ class SajMqtt:
                     self.hass,
                     self.topic_data_transmission,
                     packet,
-                    qos=SAJ_MQTT_QOS,
-                    retain=SAJ_MQTT_RETAIN,
-                    encoding=SAJ_MQTT_ENCODING,
+                    qos=MQTT_QOS,
+                    retain=MQTT_RETAIN,
+                    encoding=MQTT_ENCODING,
                 )
 
                 # Wait for the answer packet (check if not None, as we can also get 0 as response)
@@ -194,15 +191,14 @@ class SajMqtt:
 
                 # Get the answer
                 data = self.write_responses[req_id]
-
-        except asyncio.TimeoutError:
+        except TimeoutError:
             LOGGER.warning(
                 "Timeout error: the inverter did not answer in expected timeout"
             )
             data = None
         except HomeAssistantError as ex:
             LOGGER.warning(
-                f"Could not publish {SAJ_MQTT_DATA_TRANSMISSION} packets, reason: {ex}"
+                f"Could not publish {MQTT_DATA_TRANSMISSION} packets, reason: {ex}"
             )
             data = None
 
@@ -215,20 +211,21 @@ class SajMqtt:
     async def _subscribe_topics(self) -> dict:
         """Subscribe to mqtt topics."""
         topics = {
-            SAJ_MQTT_DATA_TRANSMISSION_RSP: {
+            MQTT_DATA_TRANSMISSION_RSP: {
                 "topic": self.topic_data_transmission_rsp,
                 "msg_callback": self._handle_data_transmission_rsp,
-                "qos": SAJ_MQTT_QOS,
-                "encoding": SAJ_MQTT_ENCODING,
+                "qos": MQTT_QOS,
+                "encoding": MQTT_ENCODING,
             }
         }
 
-        debug(f"Subscribing to topics: {list(topics.keys())}")
         unsubscribe_callbacks = {}
-        for item, topic_data in topics.items():
-            unsubscribe_callbacks[item] = await self.mqtt.async_subscribe(
+        for topic_data in topics.values():
+            topic = topic_data["topic"]
+            debug(f"Subscribing to topic: {topic}")
+            unsubscribe_callbacks[topic] = await self.mqtt.async_subscribe(
                 self.hass,
-                topic_data["topic"],
+                topic,
                 topic_data["msg_callback"],
                 qos=topic_data["qos"],
                 encoding=topic_data["encoding"],
@@ -240,7 +237,7 @@ class SajMqtt:
     def _handle_data_transmission_rsp(self, msg: ReceiveMessage) -> None:
         """Handle a mqtt data_transmission_rsp response packet."""
         try:
-            debug(f"Received {SAJ_MQTT_DATA_TRANSMISSION_RSP} packet", self.debug_mqtt)
+            debug(f"Received {MQTT_DATA_TRANSMISSION_RSP} packet", self.debug_mqtt)
             req_id, content = self._parse_packet(msg.payload)
             if req_id in self.read_responses:
                 self.read_responses[req_id] = content
@@ -248,7 +245,7 @@ class SajMqtt:
                 self.write_responses[req_id] = content
         except Exception as ex:  # pylint: disable=broad-except
             LOGGER.error(
-                f"Error while handling {SAJ_MQTT_DATA_TRANSMISSION_RSP} packet: {ex}"
+                f"Error while handling {MQTT_DATA_TRANSMISSION_RSP} packet: {ex}"
             )
 
     def _parse_packet(self, packet) -> tuple[int, bytearray | int]:

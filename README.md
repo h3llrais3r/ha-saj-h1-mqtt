@@ -1,85 +1,63 @@
-# saj_mqtt
-Home Assistant integration for SAJ H1 inverters
-This custom integration provides MQTT integration for SAJ H1 inverters and some other compatibile models. \
-**DISCLAIMER:** this is a heavy work in progress, I won't be responsible for any kind of loss during it usage, the integration is provided AS-IS.
+# SAJ H1 solar inverter (MQTT)
+
+Home Assistant integration for SAJ H1 solar inverters. \
+This custom integration provides MQTT integration for SAJ H1 solar inverters. \
+**DISCLAIMER:** I won't be responsible for any kind of loss during it usage, the integration is provided AS-IS.
 
 ## Configure Home Assistant MQTT broker
-This integration uses the MQTT services already configured in Home Assistant to communicate with the inverter and retrieve the data, for this reason you need to first setup a broker and configure Home Assistant to talk to using the standard MQTT integration. Of course, if you already have MQTT configured, you don't need to do this again.
 
-## Install the integration
-Copy content of **custom_components** into your Home Assistant custom components directory (for example: `/home/homeassistant/.homeassistant/custom_components/saj_mqtt`).
-
-Edit Home Assistant **configuration.yaml** (usually found in `/home/homeassistant/.homeassistant/configuration.yaml`) and add the following section:
-```YAML
-saj_mqtt:
-    serial_number: {inverter_serial_number}
-    scan_interval: {scan_interval}
-    scan_interval_inverter_info: {scan_interval_inverter_info}
-    scan_interval_battery_info: {scan_interval_battery_info}
-    scan_interval_battery_controller: {scan_interval_battery_controller}
-    scan_interval_config: {scan_interval_config}
-    debug_mqtt: {debug_mqtt}
-```
-
-The `{inverter_serial_number}` is the inverter serial number (required, f.e. `H1S2xxxxxxxxxxxxxx`).
-
-The `{scan_interval}` is the scan interval for the realtime data (optional, defaults to `60`).
-This is realtime data.
-This is always fetched.
-Do not set lower than `10` seconds!
-
-The `{scan_interval_inverter_info}` is the scan interval for the inverter info data (optional, defaults to `None`).
-This is static data.
-This is only needed if you want to read the inverter info.
-If required, set to `startup` or a slow scan interval like `days: 1`.
-
-The `{scan_interval_battery_info}` is the scan interval for the battery info data (optional, defaults to `None`).
-This is static data.
-This is only needed if you want to read the battery info.
-If required, set to `startup` or a slow scan interval like `days: 1`.
-
-The `{scan_interval_battery_controller}` is the scan interval for the battery controller data (optional, defaults to `None`).
-This is realtime data.
-This is only needed if you have multiple batteries and want to know the details of each battery individually.
-Do not set lower than `10` seconds.
-
-The`{scan_interval_config}` is the scan interval for the config data (optional, defaults to `None`).
-This is static data, but it can be changed via app or by writing to the registers.
-This is only needed if you want to read config data.
-If required, set to `startup` or a slow scan interval like `days: 1`.
-
-The`{debug_mqtt}` is the flag to indicate detailed mqtt debugging is needed (optional, defaults to `False`)
-
-All scan intervals can be configured as a positive timedelta:
-
-- in seconds: `60`
-- in time string format: `"00:01:00"`
-- in timedelta dict format:
-  ```
-  scan_interval:
-    days: 0
-    hours: 0
-    minutes: 0
-    seconds: 60
-  ```
-
-All scan intervals, except the default realtime `scan_interval`, can also be set to `startup` to only scan the data at startup.
-
-If a scan interval is not defined, the related dataset and sensors will not be fetched and loaded.
-
-Only the realtime dataset will always be fetched by default.
+This integration uses the MQTT services already configured in Home Assistant to communicate with the inverter and retrieve the data. \
+For this reason you need to first setup a broker and configure Home Assistant to talk to using the standard MQTT integration. \
+Of course, if you already have MQTT configured, you don't need to do this again.
 
 ## Configure the inverter
-The last step is to configure the inverter (actually the Wifi communication module AIO3 attached to the inverter) to talk with the local MQTT broker and not directly with the SAJ broker; to do that, you have two options:
 
-- Change the MQTT broker using eSAJ Home app (see [this](https://play.google.com/store/apps/details?id=com.saj.esolarhome)) to your local MQTT broker.
-- Poison your local DNS to redirect the MQTT messages to your broker. This consists in telling your home router to point to your broker IP when domain **mqtt.saj-solar.com** is queried by the inverter, so refer to your router capabilities to handle this. This may require some time for the inverter to discover that the broker IP changed, so you may want to remove and reinstall the Wifi AIO3 module to restart it. Optionally, you can additionally bridge your local MQTT broker to SAJ mqtt broker if you still want to use the eSAJ Home app. For instructions, see [this](https://github.com/paolosabatino/saj-mqtt-ha/discussions/4).
+The last step is to configure the inverter (actually the Wifi communication module AIO3 attached to the inverter) to talk with the local MQTT broker and not directly with the SAJ broker. \
+To do that, you have 3 options:
+- Change the MQTT broker using the SAJ [eSolar O&M](https://play.google.com/store/apps/details?id=com.saj.operation) app to your local MQTT broker.
+- Poison your local DNS to redirect the MQTT messages to your broker. This consists in telling your home router to point to your broker IP when domain **mqtt.saj-solar.com** is queried by the inverter. Refer to your router capabilities to handle this. This may require some time for the inverter to discover that the broker IP changed, so you may want to remove and reinstall the Wifi AIO3 module to restart it.
+- Setup a bridge on your local MQTT broker to the SAJ mqtt broker if you still want to use the SAJ [Home](https://play.google.com/store/apps/details?id=com.saj.home) app. For instructions, see [here](https://github.com/paolosabatino/saj-mqtt-ha/discussions/4).
+
+## Install the integration
+
+### Option 1: via HACS
+
+- Add a custom integration repository to HACS: https://github.com/h3llrais3r/ha-saj-h1-mqtt
+- Once the repository is added, use the search bar and type "SAJ H1 solar inverter (MQTT)"
+- Download the integration by using the `Download` button
+- Restart Home Assistant
+- Setup the integration as described below (see: Setting up the integration)
+
+### Option 2: manual installation
+
+- In the `custom_components` directory of your home assistant system create a directory called `saj_h1_mqtt`.
+- Download all the files from `/custom_components/saj_h1_mqtt/` directory in this repository and place them in the `saj_h1_mqtt` directory you created before.
+- Restart Home Assistant
+- Setup the integration as described below (see: Setting up the integration)
+
+## Setting up the integration
+
+- Go to Configuration -> Integrations and add "SAJ H1 solar inverter (MQTT)" integration
+- Provide the serial number of your inverter
+- Specify the realtime data scan interval
+- Optionally, if you would have multiple inverters, you can include the serial number in the sensor sames
+- Click submit to enable the integration
+- Optionally, you can configure the integration again to:
+    - include additional data:
+        - inverter data
+        - battery data
+        - battery controller data
+        - config data
+    - enable accurate realtime power data (as SAJ tries to hide minimal grid import/export from the realtime data)
+    - enable mqqt debugging (for debugging purposes)
 
 ## HA services
+
 This integration also exposes a few services that can be used from within home assistant.
 The following services are available:
-- `saj_mqtt.set_app_mode`, to write a specific app mode (from a list of predefined values)
-- `saj_mqtt.write_register`, to write to any value to any register (USE AT OWN RISK AS THIS CAN DAMAGE YOUR INVERTER!)
-- `saj_mqtt.read_register`, to read a value of any register
-- `saj_mqtt.refresh_config_data`, to refresh the config data sensors
-- `saj_mqtt.refresh_battery_controller_data`, to refresh teh battery controller data sensors
+- `saj_h1_mqtt.read_register`, to read a value of any register
+- `saj_h1_mqtt.write_register`, to write to any value to any register (USE AT OWN RISK AS THIS CAN DAMAGE YOUR INVERTER!)
+- `saj_h1_mqtt.refresh_inverter_data`, to refresh the inverter data sensors
+- `saj_h1_mqtt.refresh_battery_data`, to refresh teh battery data sensors
+- `saj_h1_mqtt.refresh_battery_controller_data`, to refresh teh battery controller data sensors
+- `saj_h1_mqtt.refresh_config_data`, to refresh the config data sensors
