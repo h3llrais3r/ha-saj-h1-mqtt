@@ -333,36 +333,30 @@ async def async_setup_entry(
     )
     entities.append(entity)
 
-    # Realtime grid power sensor
+    # Realtime grid power sensor (use default or accurate power data)
+    description = REALTIME_GRID_POWER_SENSOR_DESCRIPTION
     if use_accurate_realtime_power_data:
-        entity = SajH1MqttSensorEntity(
-            coordinator_realtime_data, ACCURATE_REALTIME_GRID_POWER_SENSOR_DESCRIPTION
-        )
-        entities.append(entity)
-    else:
-        entity = SajH1MqttSensorEntity(
-            coordinator_realtime_data, REALTIME_GRID_POWER_SENSOR_DESCRIPTION
-        )
-        entities.append(entity)
+        description = ACCURATE_REALTIME_GRID_POWER_SENSOR_DESCRIPTION
+    entity = SajH1MqttSensorEntity(coordinator_realtime_data, description)
+    entities.append(entity)
 
-    # Realtime system load power sensor
+    # Realtime system load power sensor (use default or accurate power data)
     if use_accurate_realtime_power_data:
-        description = ACCURATE_REALTIME_SYSTEM_LOAD_POWER_SENSOR_DESCRIPTION
-        system_load = get_entity_description(
-            SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS, "summary_system_load_power"
-        )
-        smart_meter_1 = get_entity_description(
-            SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS, "summary_smart_meter_load_power_1"
-        )
-        smart_meter_2 = get_entity_description(
-            SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS, "summary_smart_meter_load_power_2"
-        )
+        # Accurate power data must be calculated from different sensors
         entity = SajH1MqttRealtimeSystemLoadPowerSensorEntity(
             coordinator_realtime_data,
-            description,
-            system_load,
-            smart_meter_1,
-            smart_meter_2,
+            ACCURATE_REALTIME_SYSTEM_LOAD_POWER_SENSOR_DESCRIPTION,
+            get_entity_description(
+                SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS, "summary_system_load_power"
+            ),
+            get_entity_description(
+                SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS,
+                "summary_smart_meter_load_power_1",
+            ),
+            get_entity_description(
+                SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS,
+                "summary_smart_meter_load_power_2",
+            ),
         )
         entities.append(entity)
     else:
@@ -385,17 +379,12 @@ async def async_setup_entry(
     )
     entities.append(entity)
 
-    # Grid state sensor
+    # Grid state sensor (use default or accurate power data)
+    description = REALTIME_GRID_STATE_SENSOR_DESCRIPTION
     if use_accurate_realtime_power_data:
-        entity = SajH1MqttSensorEntity(
-            coordinator_realtime_data, ACCURATE_REALTIME_GRID_STATE_SENSOR_DESCRIPTION
-        )
-        entities.append(entity)
-    else:
-        entity = SajH1MqttSensorEntity(
-            coordinator_realtime_data, REALTIME_GRID_STATE_SENSOR_DESCRIPTION
-        )
-        entities.append(entity)
+        description = ACCURATE_REALTIME_GRID_STATE_SENSOR_DESCRIPTION
+    entity = SajH1MqttSensorEntity(coordinator_realtime_data, description)
+    entities.append(entity)
 
     # System load state sensor
     entity = SajH1MqttSensorEntity(
