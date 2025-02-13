@@ -30,7 +30,6 @@ SERVICE_REFRESH_INVERTER_DATA = "refresh_inverter_data"
 SERVICE_REFRESH_BATTERY_DATA = "refresh_battery_data"
 SERVICE_REFRESH_BATTERY_CONTROLLER_DATA = "refresh_battery_controller_data"
 SERVICE_REFRESH_CONFIG_DATA = "refresh_config_data"
-SERVICE_SET_APP_MODE = "set_app_mode"
 
 # Attribute constants
 ATTR_CONFIG_ENTRY = "config_entry"
