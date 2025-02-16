@@ -62,6 +62,7 @@ MQTT_ENCODING = None
 MQTT_DATA_TRANSMISSION = "data_transmission"
 MQTT_DATA_TRANSMISSION_RSP = "data_transmission_rsp"
 MQTT_DATA_TRANSMISSION_TIMEOUT = 10
+MQTT_WAIT_SLEEP_TIME = 0.05  # time in s
 
 # Default constants
 DEFAULT_SCAN_INTERVAL = timedelta(seconds=60)

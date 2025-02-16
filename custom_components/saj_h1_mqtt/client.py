@@ -26,6 +26,7 @@ from .const import (
     MQTT_ENCODING,
     MQTT_QOS,
     MQTT_RETAIN,
+    MQTT_WAIT_SLEEP_TIME,
 )
 from .utils import computeCRC, debug, log_hex
 
@@ -119,13 +120,14 @@ class SajH1MqttClient:
                         for k in req_ids
                         if k in self.read_responses
                     )
+                    # Check if all responses are returned
                     if all(responses.values()) is True:
                         break
                     debug(
                         f"Waiting for responses with request id: {[f'{log_hex(k)}' for k in req_ids if responses[k] is None]}",
                         self.debug_mqtt,
                     )
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(MQTT_WAIT_SLEEP_TIME)
                 debug("All responses received", self.debug_mqtt)
 
                 # Concatenate the payloads, so we get the full answer
@@ -178,15 +180,16 @@ class SajH1MqttClient:
                     encoding=MQTT_ENCODING,
                 )
 
-                # Wait for the answer packet (check if not None, as we can also get 0 as response)
+                # Wait for the answer packet
                 while True:
+                    # Check if not None, as we can also get 0 as response
                     if self.write_responses[req_id] is not None:
                         break
                     debug(
                         f"Waiting for response with request id: {f'{log_hex(req_id)}' if self.write_responses[req_id] is None else ''}",
                         self.debug_mqtt,
                     )
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(MQTT_WAIT_SLEEP_TIME)
                 debug("Response received", self.debug_mqtt)
 
                 # Get the answer
