@@ -49,7 +49,7 @@ def async_register_services(hass: HomeAssistant) -> None:
                 register_start = int(attr_register)
         except ValueError as e:
             LOGGER.error(f"Invalid register: {attr_register}")
-            raise e
+            raise ServiceValidationError("Invalid register", DOMAIN) from e
         try:
             if attr_register_size.startswith("0x"):
                 register_size = int(attr_register_size, 16)
@@ -57,11 +57,11 @@ def async_register_services(hass: HomeAssistant) -> None:
                 register_size = int(attr_register_size)
         except ValueError as e:
             LOGGER.error(f"Invalid register size: {attr_register_size}")
-            raise e
+            raise ServiceValidationError("Invalid register value") from e
         if attr_register_format and not attr_register_format.startswith(">"):
             msg = f"Invalid register format: {attr_register_format}"
             LOGGER.error(msg)
-            raise ValueError(msg)
+            raise ServiceValidationError("Invalid register format")
         # Read register
         content = await mqtt_client.read_registers(register_start, register_size)
         # Return response (format if needed, otherwise return bytes)
@@ -105,7 +105,7 @@ def async_register_services(hass: HomeAssistant) -> None:
                 register = int(attr_register)
         except ValueError as e:
             LOGGER.error(f"Invalid register: {attr_register}")
-            raise e
+            raise ServiceValidationError("Invalid register") from e
         try:
             if attr_register_value.startswith("0x"):
                 value = int(attr_register_value, 16)
@@ -113,7 +113,7 @@ def async_register_services(hass: HomeAssistant) -> None:
                 value = int(attr_register_value)
         except ValueError as e:
             LOGGER.error(f"Invalid register value: {attr_register_value}")
-            raise e
+            raise ServiceValidationError("Invalid register value") from e
         # Write register
         await mqtt_client.write_register(register, value)
 
