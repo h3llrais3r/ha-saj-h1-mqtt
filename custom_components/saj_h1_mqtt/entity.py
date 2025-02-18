@@ -103,32 +103,42 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
         if payload is None:
             return None
 
-        # Get raw sensor value (>Sxx is custom type to indicate a string of length xx)
         value: int | float | str | None = None
-        if self._data_type.startswith(">S"):
-            reg_length = int(self._data_type.replace(">S", ""))
-            value = bytearray.decode(payload[self._offset : self._offset + reg_length])
-        else:
-            (value,) = unpack_from(
-                self._data_type,
-                payload,
-                self._offset,
+        try:
+            # Get raw sensor value (>Sxx is custom type to indicate a string of length xx)
+            if self._data_type.startswith(">S"):
+                reg_length = int(self._data_type.replace(">S", ""))
+                value = bytearray.decode(
+                    payload[self._offset : self._offset + reg_length]
+                )
+            else:
+                (value,) = unpack_from(
+                    self._data_type,
+                    payload,
+                    self._offset,
+                )
+
+            # Set sensor value (taking scale into account, scale should ALWAYS contain a .)
+            if self._scale is not None:
+                digits = max(0, str(self._scale)[::-1].find("."))
+                value = round(value * float(self._scale), digits)
+                # If scale is a str, format the value with the same precision
+                if isinstance(self._scale, str):
+                    value = "{:.{precision}f}".format(value, precision=digits)
+
+            # Value conversion function
+            if self._value_fn:
+                value = self._value_fn(value)
+
+            # Custom native value implementation
+            value = self._custom_native_value(value)
+
+        except Exception as e:
+            LOGGER.error(
+                f"Unable to get native value for entity: {self.entity_id or self.name}",
+                e,
             )
-
-        # Set sensor value (taking scale into account, scale should ALWAYS contain a .)
-        if self._scale is not None:
-            digits = max(0, str(self._scale)[::-1].find("."))
-            value = round(value * float(self._scale), digits)
-            # If scale is a str, format the value with the same precision
-            if isinstance(self._scale, str):
-                value = "{:.{precision}f}".format(value, precision=digits)
-
-        # Value conversion function
-        if self._value_fn:
-            value = self._value_fn(value)
-
-        # Custom native value implementation
-        value = self._custom_native_value(value)
+            return None
 
         if self.entity_id:
             LOGGER.debug(
