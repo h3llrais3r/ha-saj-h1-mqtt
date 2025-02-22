@@ -29,7 +29,7 @@ from .const import (
     AppMode,
     BatteryState,
     GridState,
-    SolarState,
+    PVState,
     SystemLoadState,
     WorkingMode,
 )
@@ -96,7 +96,7 @@ SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS: tuple[SajH1MqttSensorEntityDescription, .
     SajH1MqttSensorEntityDescription(key="battery_temperature", entity_registry_enabled_default=True, device_class=SensorDeviceClass.TEMPERATURE, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfTemperature.CELSIUS, modbus_register_offset=0xdc, modbus_register_data_type=">h", modbus_register_scale=0.1, value_fn=None),
     SajH1MqttSensorEntityDescription(key="battery_soc", entity_registry_enabled_default=True, device_class=SensorDeviceClass.BATTERY, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=PERCENTAGE, modbus_register_offset=0xde, modbus_register_data_type=">H", modbus_register_scale=0.01, value_fn=None),
 
-    # Photovoltaic data
+    # PV data
     SajH1MqttSensorEntityDescription(key="pv_array_1_voltage", entity_registry_enabled_default=True, device_class=SensorDeviceClass.VOLTAGE, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfElectricPotential.VOLT, modbus_register_offset=0xe2, modbus_register_data_type=">H", modbus_register_scale=0.1, value_fn=None),
     SajH1MqttSensorEntityDescription(key="pv_array_1_current", entity_registry_enabled_default=True, device_class=SensorDeviceClass.CURRENT, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfElectricCurrent.AMPERE, modbus_register_offset=0xe4, modbus_register_data_type=">H", modbus_register_scale=0.01, value_fn=None),
     SajH1MqttSensorEntityDescription(key="pv_array_1_power", entity_registry_enabled_default=True, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfPower.WATT, modbus_register_offset=0xe6, modbus_register_data_type=">H", modbus_register_scale=1.0, value_fn=None),
@@ -107,7 +107,7 @@ SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS: tuple[SajH1MqttSensorEntityDescription, .
     # Power summaries
     SajH1MqttSensorEntityDescription(key="summary_system_load_power", entity_registry_enabled_default=True, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfPower.WATT, modbus_register_offset=0x140, modbus_register_data_type=">H", modbus_register_scale=1.0, value_fn=None),
     SajH1MqttSensorEntityDescription(key="summary_smart_meter_load_power_1", entity_registry_enabled_default=True, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfPower.WATT, modbus_register_offset=0x142, modbus_register_data_type=">h", modbus_register_scale=1.0, value_fn=None),
-    SajH1MqttSensorEntityDescription(key="summary_photovoltaic_power", entity_registry_enabled_default=True, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfPower.WATT, modbus_register_offset=0x14a, modbus_register_data_type=">H", modbus_register_scale=1.0, value_fn=None),
+    SajH1MqttSensorEntityDescription(key="summary_pv_power", entity_registry_enabled_default=True, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfPower.WATT, modbus_register_offset=0x14a, modbus_register_data_type=">H", modbus_register_scale=1.0, value_fn=None),
     SajH1MqttSensorEntityDescription(key="summary_battery_power", entity_registry_enabled_default=True, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfPower.WATT, modbus_register_offset=0x14c, modbus_register_data_type=">h", modbus_register_scale=1.0, value_fn=None),
     SajH1MqttSensorEntityDescription(key="summary_grid_power", entity_registry_enabled_default=True, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfPower.WATT, modbus_register_offset=0x14e, modbus_register_data_type=">h", modbus_register_scale=1.0, value_fn=None),
     SajH1MqttSensorEntityDescription(key="summary_inverter_power", entity_registry_enabled_default=True, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfPower.WATT, modbus_register_offset=0x152, modbus_register_data_type=">h", modbus_register_scale=1.0, value_fn=None),
@@ -117,7 +117,7 @@ SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS: tuple[SajH1MqttSensorEntityDescription, .
 
 # realtime data energy statistics sensors
 SAJ_REALTIME_DATA_ENERGY_STATS_SENSOR_DESCRIPTIONS: tuple[SajH1MqttSensorEntityDescription, ...] = (
-    SajH1MqttSensorEntityDescription(key="energy_photovoltaic", entity_registry_enabled_default=True, device_class=SensorDeviceClass.ENERGY, state_class=SensorStateClass.TOTAL_INCREASING, native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR, modbus_register_offset=0x17e, modbus_register_data_type=">I", modbus_register_scale=0.01, value_fn=None),
+    SajH1MqttSensorEntityDescription(key="energy_pv", entity_registry_enabled_default=True, device_class=SensorDeviceClass.ENERGY, state_class=SensorStateClass.TOTAL_INCREASING, native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR, modbus_register_offset=0x17e, modbus_register_data_type=">I", modbus_register_scale=0.01, value_fn=None),
     SajH1MqttSensorEntityDescription(key="energy_battery_charged", entity_registry_enabled_default=True, device_class=SensorDeviceClass.ENERGY, state_class=SensorStateClass.TOTAL_INCREASING, native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR, modbus_register_offset=0x18e, modbus_register_data_type=">I", modbus_register_scale=0.01, value_fn=None),
     SajH1MqttSensorEntityDescription(key="energy_battery_discharged", entity_registry_enabled_default=True, device_class=SensorDeviceClass.ENERGY, state_class=SensorStateClass.TOTAL_INCREASING, native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR, modbus_register_offset=0x19e, modbus_register_data_type=">I", modbus_register_scale=0.01, value_fn=None),
     SajH1MqttSensorEntityDescription(key="energy_system_load", entity_registry_enabled_default=True, device_class=SensorDeviceClass.ENERGY, state_class=SensorStateClass.TOTAL_INCREASING, native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR, modbus_register_offset=0x1be, modbus_register_data_type=">I", modbus_register_scale=0.01, value_fn=None),
@@ -129,8 +129,8 @@ SAJ_REALTIME_DATA_ENERGY_STATS_SENSOR_DESCRIPTIONS: tuple[SajH1MqttSensorEntityD
 # fmt: on
 
 # Realtime power sensors (based on realtime data, to be used with power flow charts)
-REALTIME_SOLAR_POWER_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
-    key="realtime_solar_power",
+REALTIME_PV_POWER_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
+    key="realtime_pv_power",
     entity_registry_enabled_default=True,
     device_class=SensorDeviceClass.POWER,
     state_class=SensorStateClass.MEASUREMENT,
@@ -175,8 +175,8 @@ REALTIME_SYSTEM_LOAD_POWER_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription
 )
 
 # Realtime state sensors (based on realtime data)
-REALTIME_SOLAR_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
-    key="realtime_solar_state",
+REALTIME_PV_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
+    key="realtime_pv_state",
     entity_registry_enabled_default=True,
     device_class=None,
     state_class=None,
@@ -186,7 +186,7 @@ REALTIME_SOLAR_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
     modbus_register_scale=1.0,
     value_fn=lambda x: None
     if x is None
-    else (SolarState.PRODUCING.value if x > 0 else SolarState.STANDBY.value),
+    else (PVState.PRODUCING.value if x > 0 else PVState.STANDBY.value),
 )
 REALTIME_BATTERY_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
     key="realtime_battery_state",
@@ -433,9 +433,9 @@ async def async_setup_entry(
 
     # Realtime power sensors
 
-    # Realtime solar power sensor
+    # Realtime pv power sensor
     entity = SajH1MqttSensorEntity(
-        coordinator_realtime_data, REALTIME_SOLAR_POWER_SENSOR_DESCRIPTION
+        coordinator_realtime_data, REALTIME_PV_POWER_SENSOR_DESCRIPTION
     )
     entities.append(entity)
 
@@ -479,9 +479,9 @@ async def async_setup_entry(
 
     # Custom state sensors (based on realtime data)
 
-    # Solar state sensor
+    # PV state sensor
     entity = SajH1MqttSensorEntity(
-        coordinator_realtime_data, REALTIME_SOLAR_STATE_SENSOR_DESCRIPTION
+        coordinator_realtime_data, REALTIME_PV_STATE_SENSOR_DESCRIPTION
     )
     entities.append(entity)
 

@@ -88,8 +88,8 @@ class AppMode(Enum):
     PASSIVE = 3
 
 
-class SolarState(StrEnum):
-    """Solar state."""
+class PVState(StrEnum):
+    """PV state."""
 
     PRODUCING = "producing"
     STANDBY = "standby"
