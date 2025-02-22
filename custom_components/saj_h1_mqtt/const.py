@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from enum import Enum
+from enum import Enum, StrEnum
 import logging
 
 DOMAIN = "saj_h1_mqtt"
@@ -88,31 +88,31 @@ class AppMode(Enum):
     PASSIVE = 3
 
 
-class SolarState(Enum):
+class SolarState(StrEnum):
     """Solar state."""
 
-    PRODUCING = "PRODUCING"
-    STANDBY = "STANDBY"
+    PRODUCING = "producing"
+    STANDBY = "standby"
 
 
-class BatteryState(Enum):
+class BatteryState(StrEnum):
     "Battery state."
 
-    CHARGING = "CHARGING"
-    DISCHARGING = "DISCHARGING"
-    STANDBY = "STANDBY"
+    CHARGING = "charging"
+    DISCHARGING = "discharging"
+    STANDBY = "standby"
 
 
-class GridState(Enum):
+class GridState(StrEnum):
     """Grid state."""
 
-    IMPORTING = "IMPORTING"
-    EXPORTING = "EXPORTING"
-    STANDBY = "STANDBY"
+    IMPORTING = "importing"
+    EXPORTING = "exporting"
+    STANDBY = "standby"
 
 
-class SystemLoadState(Enum):
+class SystemLoadState(StrEnum):
     "System load state."
 
-    CONSUMING = "CONSUMING"
-    STANDBY = "STANDBY"
+    CONSUMING = "consuming"
+    STANDBY = "standby"
