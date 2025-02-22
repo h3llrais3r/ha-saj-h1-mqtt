@@ -398,7 +398,7 @@ async def async_setup_entry(
     # Get coordinators (only realtime data is required, all others are optional)
     coordinator_realtime_data = entry.runtime_data.coordinator_realtime_data
     coordinator_inverter_data = entry.runtime_data.coordinator_inverter_data
-    coordinator_battery_data = entry.runtime_data.coordinator_battery_controller_data
+    coordinator_battery_data = entry.runtime_data.coordinator_battery_data
     coordinator_battery_controller_data = (
         entry.runtime_data.coordinator_battery_controller_data
     )
