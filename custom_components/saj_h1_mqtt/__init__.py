@@ -134,9 +134,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
     )
 
     # Trigger first refresh
-    # If mqtt ready, refresh immediately (case when you reload the integration)
+    # If mqtt ready (or birth message disabled), refresh immediately (case when you reload the integration)
     # If mqtt not ready, wait for mqtt birth message before refresh (case when starting up homeassistant)
-    if hass.data[DOMAIN][MQTT_READY]:
+    if hass.data[DOMAIN][MQTT_READY] or not _get_birth_message_topic(hass):
         await entry.runtime_data.async_first_refresh()
     else:
         await async_first_refresh_on_mqtt_birth_message(hass, entry)
@@ -171,7 +171,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) -
 
 async def async_first_refresh_on_mqtt_birth_message(
     hass: HomeAssistant, entry: SajH1MqttConfigEntry
-):
+) -> None:
     """Wait for mqtt birth message before triggering initial refresh.
 
     Because mqtt discovery can delay the birth message,
@@ -190,5 +190,16 @@ async def async_first_refresh_on_mqtt_birth_message(
         unsubscribe_callback()
 
     # Subscribe to the birth message topic
-    topic = hass.data[mqtt.DOMAIN].client.conf[mqtt.CONF_BIRTH_MESSAGE][mqtt.CONF_TOPIC]
+    topic = _get_birth_message_topic(hass)
     unsubscribe_callback = await mqtt.async_subscribe(hass, topic, on_message)
+
+
+def _get_birth_message_topic(hass: HomeAssistant) -> str | None:
+    try:
+        mqtt_data: mqtt.MqttData = hass.data[mqtt.DOMAIN]
+        return mqtt_data.client.conf[mqtt.CONF_BIRTH_MESSAGE][mqtt.CONF_TOPIC]
+    except KeyError:
+        LOGGER.warning(
+            "No birth topic configured, triggering first refresh immediately (might cause timeout)"
+        )
+        return None
