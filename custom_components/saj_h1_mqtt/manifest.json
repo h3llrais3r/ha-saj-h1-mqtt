@@ -1,7 +1,7 @@
 {
   "domain": "saj_h1_mqtt",
   "name": "SAJ H1 solar inverter (MQTT)",
-  "version": "0.1",
+  "version": "1.0.0",
   "codeowners": ["@h3llrais3r", "@paolosabatino"],
   "config_flow": true,
   "dependencies": ["mqtt"],
