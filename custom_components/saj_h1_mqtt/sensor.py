@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -49,14 +51,16 @@ class SajH1MqttSensorEntityDescription(
 
 # realtime data sensors
 SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS: tuple[SajH1MqttSensorEntityDescription, ...] = (
-    # General info
-    # SajH1MqttSensorEntityDescription(key="year", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=None),
-    # SajH1MqttSensorEntityDescription(key="month", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=2, modbus_register_data_type=">B", modbus_register_scale=None, value_fn=None),
-    # SajH1MqttSensorEntityDescription(key="day", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=3, modbus_register_data_type=">B", modbus_register_scale=None, value_fn=None),
-    # SajH1MqttSensorEntityDescription(key="hour", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=4, modbus_register_data_type=">B", modbus_register_scale=None, value_fn=None),
-    # SajH1MqttSensorEntityDescription(key="minute", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=5, modbus_register_data_type=">B", modbus_register_scale=None, value_fn=None),
-    # SajH1MqttSensorEntityDescription(key="second", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=6, modbus_register_data_type=">B", modbus_register_scale=None, value_fn=None),
+    # Time data
+    SajH1MqttSensorEntityDescription(key="time_year", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=None),
+    SajH1MqttSensorEntityDescription(key="time_month", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=2, modbus_register_data_type=">B", modbus_register_scale=None, value_fn=None),
+    SajH1MqttSensorEntityDescription(key="time_day", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=3, modbus_register_data_type=">B", modbus_register_scale=None, value_fn=None),
+    SajH1MqttSensorEntityDescription(key="time_hour", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=4, modbus_register_data_type=">B", modbus_register_scale=None, value_fn=None),
+    SajH1MqttSensorEntityDescription(key="time_minute", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=5, modbus_register_data_type=">B", modbus_register_scale=None, value_fn=None),
+    SajH1MqttSensorEntityDescription(key="time_second", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=6, modbus_register_data_type=">B", modbus_register_scale=None, value_fn=None),
+    SajH1MqttSensorEntityDescription(key="time_reserved", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=7, modbus_register_data_type=">B", modbus_register_scale=None, value_fn=None),
 
+    # General data
     SajH1MqttSensorEntityDescription(key="inverter_working_mode", entity_registry_enabled_default=True, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0x8, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=lambda x: WorkingMode(x).name),
     SajH1MqttSensorEntityDescription(key="heatsink_temperature", entity_registry_enabled_default=True, device_class=SensorDeviceClass.TEMPERATURE, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfTemperature.CELSIUS, modbus_register_offset=0x20, modbus_register_data_type=">h", modbus_register_scale=0.1, value_fn=None),
     SajH1MqttSensorEntityDescription(key="earth_leakage_current", entity_registry_enabled_default=True, device_class=SensorDeviceClass.CURRENT, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfElectricCurrent.MILLIAMPERE, modbus_register_offset=0x24, modbus_register_data_type=">H", modbus_register_scale=1.0, value_fn=None),
@@ -284,6 +288,19 @@ ACCURATE_REALTIME_GRID_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescripti
     ),
 )
 
+# Inverter time sensor
+INVERTER_TIME_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
+    key="inverter_time",
+    entity_registry_enabled_default=True,
+    device_class=SensorDeviceClass.TIMESTAMP,
+    state_class=None,
+    native_unit_of_measurement=None,
+    modbus_register_offset=None,
+    modbus_register_data_type=None,
+    modbus_register_scale=None,
+    value_fn=lambda x: None,
+)
+
 # fmt: off
 
 # inverter data sensors
@@ -504,6 +521,21 @@ async def async_setup_entry(
     )
     entities.append(entity)
 
+    # Inverter time sensor (based on multiple realtime data registers)
+    entity = SajH1MqttInverterTimeSensorEntity(
+        coordinator_realtime_data,
+        INVERTER_TIME_SENSOR_DESCRIPTION,
+        get_entity_description(SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS, "time_year"),
+        get_entity_description(SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS, "time_month"),
+        get_entity_description(SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS, "time_day"),
+        get_entity_description(SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS, "time_hour"),
+        get_entity_description(SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS, "time_minute"),
+        get_entity_description(SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS, "time_second"),
+        get_entity_description(SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS, "time_reserved"),
+        hass.config.time_zone,  # Time zone for constructing time with correct time zone
+    )
+    entities.append(entity)
+
     # Inverter data sensors
     if coordinator_inverter_data:
         for description in SAJ_INVERTER_DATA_SENSOR_DESCRIPTIONS:
@@ -591,11 +623,76 @@ class SajH1MqttRealtimeSystemLoadPowerSensorEntity(SajH1MqttSensorEntity):
         - the smart meter 1 power
         - the smart meter 2 power (which is inverted, so we can just add it)
         """
+        # Return None if no coordinator data
+        payload = self.coordinator.data
+        if payload is None:
+            return None
+
         value = (
             self._get_system_load_power()
             + self._get_smart_meter_1_power()
             + self._get_smart_meter_2_power()
         )
+
+        LOGGER.debug(
+            f"Entity: {self.entity_id}, value: {value}{' ' + self.unit_of_measurement if self.unit_of_measurement else ''}"
+        )
+
+        return value
+
+
+class SajH1MqttInverterTimeSensorEntity(SajH1MqttSensorEntity):
+    """SAJ H1 MQTT inverter time sensor entity.
+
+    This custom sensor uses the values of different time registers to construct the time.
+    """
+
+    def __init__(
+        self,
+        coordinator: SajH1MqttDataCoordinator,
+        description: SajH1MqttEntityDescription,
+        year: SajH1MqttEntityDescription,
+        month: SajH1MqttEntityDescription,
+        day: SajH1MqttEntityDescription,
+        hour: SajH1MqttEntityDescription,
+        minute: SajH1MqttEntityDescription,
+        second: SajH1MqttEntityDescription,
+        reserved: SajH1MqttEntityDescription,
+        time_zone: str | None,
+    ) -> None:
+        """Initialize the entity."""
+        super().__init__(coordinator, description)
+        self._year = SajH1MqttSensorEntity(coordinator, year)
+        self._month = SajH1MqttSensorEntity(coordinator, month)
+        self._day = SajH1MqttSensorEntity(coordinator, day)
+        self._hour = SajH1MqttSensorEntity(coordinator, hour)
+        self._minute = SajH1MqttSensorEntity(coordinator, minute)
+        self._second = SajH1MqttSensorEntity(coordinator, second)
+        self._reserved = SajH1MqttSensorEntity(coordinator, reserved)
+        self._zone_info = ZoneInfo(time_zone or "UTC")  # fallback to UTC
+
+    def _get_native_value(self) -> int | float | str | None:
+        """Get the native value for the entity.
+
+        The datetime is constructed from the different time registers.
+        """
+        # Return None if no coordinator data
+        payload = self.coordinator.data
+        if payload is None:
+            return None
+
+        # Get different time register values
+        yyyy = self._year.native_value
+        mm = self._month.native_value
+        dd = self._day.native_value
+        hh = self._hour.native_value
+        mi = self._minute.native_value
+        ss = self._second.native_value
+
+        # Create timezone aware datetime
+        value = None
+        if all(x is not None for x in [yyyy, mm, dd, hh, mi, ss]):
+            value = datetime(yyyy, mm, dd, hh, mi, ss, tzinfo=self._zone_info)
 
         LOGGER.debug(
             f"Entity: {self.entity_id}, value: {value}{' ' + self.unit_of_measurement if self.unit_of_measurement else ''}"
