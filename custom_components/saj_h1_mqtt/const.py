@@ -74,10 +74,16 @@ LOGGER = logging.getLogger(__package__)
 class WorkingMode(Enum):
     """Working mode."""
 
+    INIT = 0
     WAIT = 1
-    NORMAL = 2
-    FAULT = 3
-    UPDATE = 4
+    NORMAL = 2  # on grid run mode
+    OFF_GRID = 3  # off grid run mode
+    ON_GRID_LOAD = 4  # on grid load mode (disable battery, all extra power from grid)
+    FAULT = 5
+    UPDATE = 6
+    TEST = 7
+    SELF_CHECK = 8
+    RESET = 9
 
 
 class AppMode(Enum):
