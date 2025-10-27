@@ -2,6 +2,8 @@
 
 Home Assistant integration for SAJ H1 solar inverters. \
 This custom integration provides MQTT integration for SAJ H1 solar inverters. \
+This is an fork from [saj-mqtt-ha](https://github.com/paolosabatino/saj-mqtt-ha) with GUI setup and extra functionality.
+
 **DISCLAIMER:** I won't be responsible for any kind of loss during it usage, the integration is provided AS-IS.
 
 ## Configure Home Assistant MQTT broker
@@ -16,7 +18,7 @@ The last step is to configure the inverter (actually the Wifi communication modu
 To do that, you have 3 options:
 - Change the MQTT broker using the SAJ [eSolar O&M](https://play.google.com/store/apps/details?id=com.saj.operation) app to your local MQTT broker.
 - Poison your local DNS to redirect the MQTT messages to your broker. This consists in telling your home router to point to your broker IP when domain **mqtt.saj-solar.com** is queried by the inverter. Refer to your router capabilities to handle this. This may require some time for the inverter to discover that the broker IP changed, so you may want to remove and reinstall the Wifi AIO3 module to restart it.
-- Setup a bridge on your local MQTT broker to the SAJ mqtt broker if you still want to use the SAJ [Home](https://play.google.com/store/apps/details?id=com.saj.home) app. For instructions, see [here](https://github.com/paolosabatino/saj-mqtt-ha/discussions/4).
+- Setup a bridge on your local MQTT broker to the SAJ mqtt broker if you still want to use the SAJ [Home](https://play.google.com/store/apps/details?id=com.saj.home) app. For instructions, see [here](https://github.com/h3llrais3r/ha-saj-h1-mqtt/discussions/2).
 
 ## Install the integration
 
