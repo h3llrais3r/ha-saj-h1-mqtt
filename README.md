@@ -57,7 +57,8 @@ To do that, you have 3 options:
 
 This integration also exposes a few services that can be used from within home assistant.
 The following services are available:
-- `saj_h1_mqtt.read_register`, to read a value of any register
+- `saj_h1_mqtt.read_register`, to read a value of a single register
+- `saj_h1_mqtt.read_registers`, to read a value of 1 or more registers
 - `saj_h1_mqtt.write_register`, to write a value to any register (USE AT OWN RISK AS THIS CAN DAMAGE YOUR INVERTER!)
 - `saj_h1_mqtt.refresh_inverter_data`, to refresh the inverter data sensors
 - `saj_h1_mqtt.refresh_battery_data`, to refresh the battery data sensors

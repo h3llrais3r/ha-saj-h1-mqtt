@@ -22,6 +22,7 @@ from .const import (
     DOMAIN,
     LOGGER,
     SERVICE_READ_REGISTER,
+    SERVICE_READ_REGISTERS,
     SERVICE_REFRESH_BATTERY_CONTROLLER_DATA,
     SERVICE_REFRESH_BATTERY_DATA,
     SERVICE_REFRESH_CONFIG_DATA,
@@ -36,7 +37,57 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def read_register(call: ServiceCall) -> core.ServiceResponse:
         LOGGER.debug("Reading register")
-        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY, None))
+        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        mqtt_client = entry.runtime_data.mqtt_client
+        attr_register: str = call.data[ATTR_REGISTER]
+        attr_register_format: str | None = call.data[ATTR_REGISTER_FORMAT]
+        # Validate input
+        try:
+            if attr_register.startswith("0x"):
+                register_start = int(attr_register, 16)
+            else:
+                register_start = int(attr_register)
+        except ValueError as e:
+            LOGGER.error(f"Invalid register: {attr_register}")
+            raise ServiceValidationError("Invalid register", DOMAIN) from e
+        if attr_register_format and not attr_register_format.startswith(">"):
+            msg = f"Invalid register format: {attr_register_format}"
+            LOGGER.error(msg)
+            raise ServiceValidationError("Invalid register format")
+        # Read 1 register
+        content = await mqtt_client.read_registers(register_start, 1)
+        if content is None:
+            LOGGER.error("Failed to read register")
+            raise ServiceValidationError("Failed to read register")
+        # Return response (format if needed, otherwise return bytes)
+        if attr_register_format:
+            (result,) = unpack_from(attr_register_format, content, 0)
+            return {"value": str(result)}
+        return {"value": ":".join(f"{b:02x}" for b in content)}
+
+    if not hass.services.has_service(DOMAIN, SERVICE_READ_REGISTER):
+        LOGGER.debug(f"Registering service: {SERVICE_READ_REGISTER}")
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_READ_REGISTER,
+            read_register,
+            schema=vol.Schema(
+                vol.All(
+                    {
+                        vol.Optional(ATTR_CONFIG_ENTRY): ConfigEntrySelector(),
+                        vol.Required(ATTR_REGISTER): cv.string,
+                        vol.Optional(ATTR_REGISTER_FORMAT, default=None): vol.Any(
+                            cv.string, None
+                        ),
+                    }
+                )
+            ),
+            supports_response=SupportsResponse.ONLY,
+        )
+
+    async def read_registers(call: ServiceCall) -> core.ServiceResponse:
+        LOGGER.debug("Reading registers")
+        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
         mqtt_client = entry.runtime_data.mqtt_client
         attr_register: str = call.data[ATTR_REGISTER]
         attr_register_size: str = call.data[ATTR_REGISTER_SIZE]
@@ -57,25 +108,28 @@ def async_register_services(hass: HomeAssistant) -> None:
                 register_size = int(attr_register_size)
         except ValueError as e:
             LOGGER.error(f"Invalid register size: {attr_register_size}")
-            raise ServiceValidationError("Invalid register value") from e
+            raise ServiceValidationError("Invalid register size") from e
         if attr_register_format and not attr_register_format.startswith(">"):
             msg = f"Invalid register format: {attr_register_format}"
             LOGGER.error(msg)
             raise ServiceValidationError("Invalid register format")
-        # Read register
+        # Read registers
         content = await mqtt_client.read_registers(register_start, register_size)
+        if content is None:
+            LOGGER.error("Failed to read registers")
+            raise ServiceValidationError("Failed to read registers")
         # Return response (format if needed, otherwise return bytes)
         if attr_register_format:
-            (result,) = unpack_from(attr_register_format, content, 0)
-            return {"value": str(result)}
-        return {"value": ":".join(f"{b:02x}" for b in content)}
+            results = unpack_from(attr_register_format, content, 0)
+            return {"values": [str(r) for r in results]}
+        return {"values": ":".join(f"{b:02x}" for b in content)}
 
-    if not hass.services.has_service(DOMAIN, SERVICE_READ_REGISTER):
-        LOGGER.debug(f"Registering service: {SERVICE_READ_REGISTER}")
+    if not hass.services.has_service(DOMAIN, SERVICE_READ_REGISTERS):
+        LOGGER.debug(f"Registering service: {SERVICE_READ_REGISTERS}")
         hass.services.async_register(
             DOMAIN,
-            SERVICE_READ_REGISTER,
-            read_register,
+            SERVICE_READ_REGISTERS,
+            read_registers,
             schema=vol.Schema(
                 vol.All(
                     {
@@ -93,7 +147,7 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def write_register(call: ServiceCall) -> None:
         LOGGER.debug("Writing register")
-        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY, None))
+        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
         mqtt_client = entry.runtime_data.mqtt_client
         attr_register: str = call.data[ATTR_REGISTER]
         attr_register_value: str = call.data[ATTR_REGISTER_VALUE]
@@ -136,7 +190,7 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def refresh_inverter_data(call: ServiceCall) -> None:
         # Only refresh when coordinator is enabled
-        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY, None))
+        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
         coordinator = entry.runtime_data.coordinator_inverter_data
         if coordinator:
             LOGGER.debug("Refreshing inverter data")
@@ -155,7 +209,7 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def refresh_battery_data(call: ServiceCall) -> None:
         # Only refresh when coordinator is enabled
-        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY, None))
+        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
         coordinator = entry.runtime_data.coordinator_battery_data
         if coordinator:
             LOGGER.debug("Refreshing battery data")
@@ -193,7 +247,7 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def refresh_config_data(call: ServiceCall) -> None:
         # Only refresh when coordinator is enabled
-        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY, None))
+        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
         coordinator = entry.runtime_data.coordinator_config_data
         if coordinator:
             LOGGER.debug("Refreshing config data")
@@ -214,6 +268,7 @@ def async_register_services(hass: HomeAssistant) -> None:
 def async_remove_services(hass: HomeAssistant) -> None:
     """Remove all services."""
     hass.services.async_remove(DOMAIN, SERVICE_READ_REGISTER)
+    hass.services.async_remove(DOMAIN, SERVICE_READ_REGISTERS)
     hass.services.async_remove(DOMAIN, SERVICE_WRITE_REGISTER)
     hass.services.async_remove(DOMAIN, SERVICE_REFRESH_INVERTER_DATA)
     hass.services.async_remove(DOMAIN, SERVICE_REFRESH_BATTERY_DATA)
@@ -221,9 +276,7 @@ def async_remove_services(hass: HomeAssistant) -> None:
     hass.services.async_remove(DOMAIN, SERVICE_REFRESH_CONFIG_DATA)
 
 
-def _get_config_entry(
-    hass: HomeAssistant, entry_id: str | None = None
-) -> SajH1MqttConfigEntry:
+def _get_config_entry(hass: HomeAssistant, entry_id: str) -> SajH1MqttConfigEntry:
     """Return the config entry or raise error if not found or not loaded."""
     # Get the specified config entry, or fallback to first one if not specified
     if not (entry := hass.config_entries.async_get_entry(entry_id)):
@@ -233,8 +286,7 @@ def _get_config_entry(
                 translation_domain=DOMAIN,
                 translation_key="entry_not_found",
             )
-        else:
-            entry = entries[0]
+        entry = entries[0]
     if entry.state is not ConfigEntryState.LOADED:
         raise ServiceValidationError(
             translation_domain=DOMAIN,

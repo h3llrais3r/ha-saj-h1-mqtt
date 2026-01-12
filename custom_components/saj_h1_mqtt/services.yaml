@@ -18,9 +18,35 @@ read_register:
       required: true
       selector:
         text:
+    register_format:
+      name: Register format
+      description: The register output format (python struct format)
+      example: ">H"
+      required: false
+      selector:
+        text:
+
+# Read multiple register values from the inverter
+read_registers:
+  description: Read multiple register values from the inverter
+  fields:
+    config_entry:
+      name: Device
+      description: SAJ H1 solar inverter, defaults to the first configured device if not specified
+      required: false
+      selector:
+        config_entry:
+          integration: saj_h1_mqtt
+    register:
+      name: Register
+      description: The start register address in hex or decimal format
+      example: "0x3247 (hex) or 12871 (decimal)"
+      required: true
+      selector:
+        text:
     register_size:
       name: Register size
-      description: The size of the register in hex or decimal format
+      description: The number of registers in hex or decimal format
       example: "0x1 (hex) or 1 (decimal)"
       required: true
       selector:

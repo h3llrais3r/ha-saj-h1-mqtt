@@ -25,6 +25,7 @@ CONF_ENABLE_MQTT_DEBUG = "enable_mqtt_debug"
 
 # Service constants
 SERVICE_READ_REGISTER = "read_register"
+SERVICE_READ_REGISTERS = "read_registers"
 SERVICE_WRITE_REGISTER = "write_register"
 SERVICE_REFRESH_INVERTER_DATA = "refresh_inverter_data"
 SERVICE_REFRESH_BATTERY_DATA = "refresh_battery_data"
