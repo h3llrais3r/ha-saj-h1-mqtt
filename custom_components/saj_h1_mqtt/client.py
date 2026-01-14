@@ -19,6 +19,7 @@ from .const import (
     MODBUS_DEVICE_ADDRESS,
     MODBUS_MAX_REGISTERS_PER_QUERY,
     MODBUS_READ_REQUEST,
+    MODBUS_WRITE_MUTIPLE_REQUEST,
     MODBUS_WRITE_REQUEST,
     MQTT_DATA_TRANSMISSION,
     MQTT_DATA_TRANSMISSION_RSP,
@@ -53,6 +54,7 @@ class SajH1MqttClient:
 
         self.read_responses = OrderedDict()
         self.write_responses = OrderedDict()
+        self.write_multiple_responses = OrderedDict()
 
         self.unsubscribe_callbacks = {}
 
@@ -159,7 +161,7 @@ class SajH1MqttClient:
         timeout: int = MQTT_DATA_TRANSMISSION_TIMEOUT,
     ) -> int | None:
         """Write a register value to the inverter."""
-        debug(f"Writing register {log_hex(register)} with value {log_hex(value)}")
+        debug(f"Writing register at {log_hex(register)}, value: {log_hex(value)}")
 
         # Create the MQTT data_transmission packet to send to the inverter
         packet, req_id = self._create_mqtt_write_packet(register, value)
@@ -211,6 +213,69 @@ class SajH1MqttClient:
 
         return data
 
+    async def write_registers(
+        self,
+        register_start: int,
+        values: list[int],
+        timeout: int = MQTT_DATA_TRANSMISSION_TIMEOUT,
+    ) -> int | None:
+        """Write multiple register values to the inverter."""
+        count = len(values)
+        hex_values = ", ".join(log_hex(v) for v in values)
+        debug(
+            f"Writing register(s) at {log_hex(register_start)}, length: {log_hex(count)}, values: {hex_values}"
+        )
+
+        # Create the MQTT data_transmission packet to send to the inverter
+        packet, req_id = self._create_mqtt_write_multiple_packet(register_start, values)
+        try:
+            async with asyncio.timeout(timeout):
+                # Publish packet
+                self.write_multiple_responses[req_id] = None
+                debug(
+                    f"Publishing packet with request id: {f'{log_hex(req_id)}'}",
+                    self.debug_mqtt,
+                )
+                await self.mqtt.async_publish(
+                    self.hass,
+                    self.topic_data_transmission,
+                    packet,
+                    qos=MQTT_QOS,
+                    retain=MQTT_RETAIN,
+                    encoding=MQTT_ENCODING,
+                )
+
+                # Wait for the answer packet
+                while True:
+                    # Check if not None, as we can also get 0 as response
+                    if self.write_multiple_responses[req_id] is not None:
+                        break
+                    debug(
+                        f"Waiting for response with request id: {f'{log_hex(req_id)}' if self.write_multiple_responses[req_id] is None else ''}",
+                        self.debug_mqtt,
+                    )
+                    await asyncio.sleep(MQTT_WAIT_SLEEP_TIME)
+                debug("Response received", self.debug_mqtt)
+
+                # Get the answer
+                data = self.write_multiple_responses[req_id]
+        except TimeoutError:
+            LOGGER.warning(
+                "Timeout error: the inverter did not answer in expected timeout"
+            )
+            data = None
+        except HomeAssistantError as ex:
+            LOGGER.warning(
+                f"Could not publish {MQTT_DATA_TRANSMISSION} packets, reason: {ex}"
+            )
+            data = None
+
+        # Cleanup self.write_responses from request id generated in this method
+        with contextlib.suppress(KeyError):
+            del self.write_multiple_responses[req_id]
+
+        return data
+
     async def _subscribe_topics(self) -> dict:
         """Subscribe to mqtt topics."""
         topics = {
@@ -244,8 +309,12 @@ class SajH1MqttClient:
             req_id, content = self._parse_packet(msg.payload)
             if req_id in self.read_responses:
                 self.read_responses[req_id] = content
-            if req_id in self.write_responses:
+            elif req_id in self.write_responses:
                 self.write_responses[req_id] = content
+            elif req_id in self.write_multiple_responses:
+                self.write_multiple_responses[req_id] = content
+            else:
+                debug("Response packet not expected, ignoring it", self.debug_mqtt)
         except Exception as ex:  # noqa: BLE001
             LOGGER.error(
                 f"Error while handling {MQTT_DATA_TRANSMISSION_RSP} packet: {ex}"
@@ -274,6 +343,8 @@ class SajH1MqttClient:
             content = self._parse_read_packet(packet)
         elif req_type == MODBUS_WRITE_REQUEST:
             content = self._parse_write_packet(packet)
+        elif req_type == MODBUS_WRITE_MUTIPLE_REQUEST:
+            content = self._parse_write_multiple_packet(packet)
         else:
             raise ValueError(f"Unsupported request type: {log_hex(req_type)}")
 
@@ -341,7 +412,37 @@ class SajH1MqttClient:
 
         return value
 
-    def _create_mqtt_read_packet(self, start: int, count: int) -> tuple[bytes, int]:
+    def _parse_write_multiple_packet(self, packet) -> int:
+        """Parse a mqtt write multiple packet.
+
+        Packet consists of [REGISTER_START][COUNT][CRC]:
+        - [REGISTER_START] the first register written
+        - [COUNT] the number of registers written
+        - [CRC] checksum
+        """
+        register_start, count, orig_crc16 = unpack_from(">HHH", packet, 0xA)  # noqa: RUF059
+
+        # Get the CRC
+        (crc16,) = unpack_from(">H", packet, 0xE)
+
+        # CRC is calculated starting from "request" at offset 0x3a
+        calc_crc = computeCRC(packet[0x8:0xE])
+
+        debug(f"First register written: {log_hex(register_start)}", self.debug_mqtt)
+        debug(f"Number of registers written: {log_hex(count)}", self.debug_mqtt)
+        debug(
+            f"CRC16: {log_hex(crc16)} -> {'ok' if crc16 == calc_crc else 'bad'}",
+            self.debug_mqtt,
+        )
+
+        if crc16 != calc_crc:
+            raise ValueError("Invalid CRC: expected {calc_crc}, received {crc16}")
+
+        return count
+
+    def _create_mqtt_read_packet(
+        self, register_start: int, count: int
+    ) -> tuple[bytes, int]:
         """Create a mqtt read packet.
 
         Create the data_transmission mqtt body content to read registers from start for the given amount of registers.
@@ -349,12 +450,12 @@ class SajH1MqttClient:
         Packet consists of [LENTH][HEADER][CONTENT][CRC]:
         - [LENGTH] of [HEADER][CONTENT][CRC]
         - [HEADER] consists of [REQ_ID][0x58][0xC9][RANDOM]
-        - [CONTENT] consists of [DEVICE_ADDRESS][REQ_TYPE][REGISTER_START][REGISTER_COUNT]
+        - [CONTENT] consists of [DEVICE_ADDRESS][REQ_TYPE][REGISTER_START][COUNT]
         - [CRC] checksum
         """
         debug("Creating mqtt read packet", self.debug_mqtt)
         content = pack(
-            ">BBHH", MODBUS_DEVICE_ADDRESS, MODBUS_READ_REQUEST, start, count
+            ">BBHH", MODBUS_DEVICE_ADDRESS, MODBUS_READ_REQUEST, register_start, count
         )
 
         return self._create_modbus_mqtt_packet(MODBUS_READ_REQUEST, content)
@@ -367,7 +468,7 @@ class SajH1MqttClient:
         Packet consists of [LENTH][HEADER][CONTENT][CRC]:
         - [LENGTH] of [HEADER][CONTENT][CRC]
         - [HEADER] consists of [REQ_ID][0x58][0xC9][RANDOM]
-        - [CONTENT] consists of [DEVICE_ADDRESS][REQ_TYPE][REGISTER_START][REGISTER_COUNT]
+        - [CONTENT] consists of [DEVICE_ADDRESS][REQ_TYPE][REGISTER][VALUE]
         - [CRC] checksum
         """
         debug("Creating mqtt write packet", self.debug_mqtt)
@@ -376,6 +477,36 @@ class SajH1MqttClient:
         )
 
         return self._create_modbus_mqtt_packet(MODBUS_WRITE_REQUEST, content)
+
+    def _create_mqtt_write_multiple_packet(
+        self, register_start: int, values: list[int]
+    ) -> tuple[bytes, int]:
+        """Create a mqtt write multiple packet.
+
+        Create the data_transmission mqtt body content to write multiple values to a multiple registers.
+
+        Packet consists of [LENTH][HEADER][CONTENT][CRC]:
+        - [LENGTH] of [HEADER][CONTENT][CRC]
+        - [HEADER] consists of [REQ_ID][0x58][0xC9][RANDOM]
+        - [CONTENT] consists of [DEVICE_ADDRESS][REQ_TYPE][REGISTER_START][COUNT][SIZE][VALUES]
+        - [CRC] checksum
+        """
+        debug("Creating mqtt write multiple packet", self.debug_mqtt)
+        count = len(values)
+        size = count * 2  # size in bytes (2 bytes per register)
+        content = pack(
+            ">BBHHB",
+            MODBUS_DEVICE_ADDRESS,
+            MODBUS_WRITE_MUTIPLE_REQUEST,
+            register_start,
+            count,
+            size,
+        )
+        # values are always written as 16-bit registers (unsigned short)
+        for value in values:
+            content += pack(">H", value)
+
+        return self._create_modbus_mqtt_packet(MODBUS_WRITE_MUTIPLE_REQUEST, content)
 
     def _create_modbus_mqtt_packet(
         self, req_type: int, content: bytes
@@ -399,5 +530,7 @@ class SajH1MqttClient:
         debug(f"Request bytes: {':'.join(f'{b:02x}' for b in packet)}", self.debug_mqtt)
 
         packet = pack(">H", len(packet)) + packet
+
+        debug(f"Final packet: {':'.join(f'{b:02x}' for b in packet)}", self.debug_mqtt)
 
         return packet, req_id
