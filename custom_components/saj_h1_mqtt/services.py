@@ -8,7 +8,7 @@ import voluptuous as vol
 
 from homeassistant import core
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse, callback
 from homeassistant.exceptions import ServiceValidationError
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.selector import ConfigEntrySelector
@@ -32,248 +32,253 @@ from .const import (
 from .types import SajH1MqttConfigEntry
 
 
-def async_register_services(hass: HomeAssistant) -> None:  # noqa: C901
-    """Register services for SAJ H1 MQTT integration."""
+async def read_register(call: ServiceCall) -> core.ServiceResponse:
+    """Read a single register from the inverter."""
+    LOGGER.debug("Reading register")
+    entry = _get_config_entry(call.hass, call.data.get(ATTR_CONFIG_ENTRY))
+    mqtt_client = entry.runtime_data.mqtt_client
+    attr_register: str = call.data.get(ATTR_REGISTER)
+    attr_register_format: str | None = call.data.get(ATTR_REGISTER_FORMAT)
 
-    async def read_register(call: ServiceCall) -> core.ServiceResponse:
-        LOGGER.debug("Reading register")
-        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY))
-        mqtt_client = entry.runtime_data.mqtt_client
-        attr_register: str = call.data.get(ATTR_REGISTER)
-        attr_register_format: str | None = call.data.get(ATTR_REGISTER_FORMAT)
-        # Validate input
-        try:
-            if attr_register.startswith("0x"):
-                register_start = int(attr_register, 16)
-            else:
-                register_start = int(attr_register)
-        except ValueError as e:
-            LOGGER.error(f"Invalid register: {attr_register}")
-            raise ServiceValidationError("Invalid register", DOMAIN) from e
-        if attr_register_format and not attr_register_format.startswith(">"):
-            msg = f"Invalid register format: {attr_register_format}"
-            LOGGER.error(msg)
-            raise ServiceValidationError("Invalid register format")
-        # Read 1 register
-        content = await mqtt_client.read_registers(register_start, 1)
-        if content is None:
-            LOGGER.error("Failed to read register")
-            raise ServiceValidationError("Failed to read register")
-        # Return response (format if needed, otherwise return bytes)
-        if attr_register_format:
-            (result,) = unpack_from(attr_register_format, content, 0)
-            return {"value": str(result)}
-        return {"value": ":".join(f"{b:02x}" for b in content)}
+    # Validate input
+    try:
+        if attr_register.startswith("0x"):
+            register_start = int(attr_register, 16)
+        else:
+            register_start = int(attr_register)
+    except ValueError as e:
+        LOGGER.error(f"Invalid register: {attr_register}")
+        raise ServiceValidationError("Invalid register", DOMAIN) from e
+    if attr_register_format and not attr_register_format.startswith(">"):
+        msg = f"Invalid register format: {attr_register_format}"
+        LOGGER.error(msg)
+        raise ServiceValidationError("Invalid register format")
 
-    if not hass.services.has_service(DOMAIN, SERVICE_READ_REGISTER):
-        LOGGER.debug(f"Registering service: {SERVICE_READ_REGISTER}")
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_READ_REGISTER,
-            read_register,
-            schema=vol.Schema(
-                vol.All(
-                    {
-                        vol.Optional(ATTR_CONFIG_ENTRY): ConfigEntrySelector(),
-                        vol.Required(ATTR_REGISTER): cv.string,
-                        vol.Optional(ATTR_REGISTER_FORMAT, default=None): vol.Any(
-                            cv.string, None
-                        ),
-                    }
-                )
-            ),
-            supports_response=SupportsResponse.ONLY,
-        )
+    # Read 1 register
+    content = await mqtt_client.read_registers(register_start, 1)
+    if content is None:
+        LOGGER.error("Failed to read register")
+        raise ServiceValidationError("Failed to read register")
 
-    async def read_registers(call: ServiceCall) -> core.ServiceResponse:
-        LOGGER.debug("Reading registers")
-        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY))
-        mqtt_client = entry.runtime_data.mqtt_client
-        attr_register: str = call.data.get(ATTR_REGISTER)
-        attr_register_size: str = call.data.get(ATTR_REGISTER_SIZE)
-        attr_register_format: str | None = call.data.get(ATTR_REGISTER_FORMAT)
-        # Validate input
-        try:
-            if attr_register.startswith("0x"):
-                register_start = int(attr_register, 16)
-            else:
-                register_start = int(attr_register)
-        except ValueError as e:
-            LOGGER.error(f"Invalid register: {attr_register}")
-            raise ServiceValidationError("Invalid register", DOMAIN) from e
-        try:
-            if attr_register_size.startswith("0x"):
-                register_size = int(attr_register_size, 16)
-            else:
-                register_size = int(attr_register_size)
-        except ValueError as e:
-            LOGGER.error(f"Invalid register size: {attr_register_size}")
-            raise ServiceValidationError("Invalid register size") from e
-        if attr_register_format and not attr_register_format.startswith(">"):
-            msg = f"Invalid register format: {attr_register_format}"
-            LOGGER.error(msg)
-            raise ServiceValidationError("Invalid register format")
-        # Read registers
-        content = await mqtt_client.read_registers(register_start, register_size)
-        if content is None:
-            LOGGER.error("Failed to read registers")
-            raise ServiceValidationError("Failed to read registers")
-        # Return response (format if needed, otherwise return bytes)
-        if attr_register_format:
-            results = unpack_from(attr_register_format, content, 0)
-            return {"values": [str(r) for r in results]}
-        return {"values": ":".join(f"{b:02x}" for b in content)}
-
-    if not hass.services.has_service(DOMAIN, SERVICE_READ_REGISTERS):
-        LOGGER.debug(f"Registering service: {SERVICE_READ_REGISTERS}")
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_READ_REGISTERS,
-            read_registers,
-            schema=vol.Schema(
-                vol.All(
-                    {
-                        vol.Optional(ATTR_CONFIG_ENTRY): ConfigEntrySelector(),
-                        vol.Required(ATTR_REGISTER): cv.string,
-                        vol.Required(ATTR_REGISTER_SIZE): cv.string,
-                        vol.Optional(ATTR_REGISTER_FORMAT, default=None): vol.Any(
-                            cv.string, None
-                        ),
-                    }
-                )
-            ),
-            supports_response=SupportsResponse.ONLY,
-        )
-
-    async def write_register(call: ServiceCall) -> None:
-        LOGGER.debug("Writing register")
-        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY))
-        mqtt_client = entry.runtime_data.mqtt_client
-        attr_register: str = call.data.get(ATTR_REGISTER)
-        attr_register_value: str = call.data.get(ATTR_REGISTER_VALUE)
-        # Validate input
-        try:
-            if attr_register.startswith("0x"):
-                register = int(attr_register, 16)
-            else:
-                register = int(attr_register)
-        except ValueError as e:
-            LOGGER.error(f"Invalid register: {attr_register}")
-            raise ServiceValidationError("Invalid register") from e
-        try:
-            if attr_register_value.startswith("0x"):
-                value = int(attr_register_value, 16)
-            else:
-                value = int(attr_register_value)
-        except ValueError as e:
-            LOGGER.error(f"Invalid register value: {attr_register_value}")
-            raise ServiceValidationError("Invalid register value") from e
-        # Write register
-        await mqtt_client.write_register(register, value)
-
-    if not hass.services.has_service(DOMAIN, SERVICE_WRITE_REGISTER):
-        LOGGER.debug(f"Registering service: {SERVICE_WRITE_REGISTER}")
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_WRITE_REGISTER,
-            write_register,
-            schema=vol.Schema(
-                vol.All(
-                    {
-                        vol.Optional(ATTR_CONFIG_ENTRY): ConfigEntrySelector(),
-                        vol.Required(ATTR_REGISTER): cv.string,
-                        vol.Required(ATTR_REGISTER_VALUE): cv.string,
-                    }
-                )
-            ),
-        )
-
-    async def refresh_inverter_data(call: ServiceCall) -> None:
-        # Only refresh when coordinator is enabled
-        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY))
-        coordinator = entry.runtime_data.coordinator_inverter_data
-        if coordinator:
-            LOGGER.debug("Refreshing inverter data")
-            await coordinator.async_request_refresh()
-
-    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_INVERTER_DATA):
-        LOGGER.debug(f"Registering service: {SERVICE_REFRESH_INVERTER_DATA}")
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_REFRESH_INVERTER_DATA,
-            refresh_inverter_data,
-            schema=vol.Schema(
-                vol.All({vol.Optional(ATTR_CONFIG_ENTRY): ConfigEntrySelector()})
-            ),
-        )
-
-    async def refresh_battery_data(call: ServiceCall) -> None:
-        # Only refresh when coordinator is enabled
-        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY))
-        coordinator = entry.runtime_data.coordinator_battery_data
-        if coordinator:
-            LOGGER.debug("Refreshing battery data")
-            await coordinator.async_request_refresh()
-
-    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_BATTERY_DATA):
-        LOGGER.debug(f"Registering service: {SERVICE_REFRESH_BATTERY_DATA}")
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_REFRESH_BATTERY_DATA,
-            refresh_battery_data,
-            schema=vol.Schema(
-                vol.All({vol.Optional(ATTR_CONFIG_ENTRY): ConfigEntrySelector()})
-            ),
-        )
-
-    async def refresh_battery_controller_data(call: ServiceCall) -> None:
-        # Only refresh when coordinator is enabled
-        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY))
-        coordinator = entry.runtime_data.coordinator_battery_controller_data
-        if coordinator:
-            LOGGER.debug("Refreshing battery controller data")
-            await coordinator.async_request_refresh()
-
-    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_BATTERY_CONTROLLER_DATA):
-        LOGGER.debug(f"Registering service: {SERVICE_REFRESH_BATTERY_CONTROLLER_DATA}")
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_REFRESH_BATTERY_CONTROLLER_DATA,
-            refresh_battery_controller_data,
-            schema=vol.Schema(
-                vol.All({vol.Optional(ATTR_CONFIG_ENTRY): ConfigEntrySelector()})
-            ),
-        )
-
-    async def refresh_config_data(call: ServiceCall) -> None:
-        # Only refresh when coordinator is enabled
-        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY))
-        coordinator = entry.runtime_data.coordinator_config_data
-        if coordinator:
-            LOGGER.debug("Refreshing config data")
-            await coordinator.async_request_refresh()
-
-    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_CONFIG_DATA):
-        LOGGER.debug(f"Registering service: {SERVICE_REFRESH_CONFIG_DATA}")
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_REFRESH_CONFIG_DATA,
-            refresh_config_data,
-            schema=vol.Schema(
-                vol.All({vol.Optional(ATTR_CONFIG_ENTRY): ConfigEntrySelector()})
-            ),
-        )
+    # Return response (format if needed, otherwise return bytes)
+    if attr_register_format:
+        (result,) = unpack_from(attr_register_format, content, 0)
+        return {"value": str(result)}
+    return {"value": ":".join(f"{b:02x}" for b in content)}
 
 
-def async_remove_services(hass: HomeAssistant) -> None:
-    """Remove all services."""
-    hass.services.async_remove(DOMAIN, SERVICE_READ_REGISTER)
-    hass.services.async_remove(DOMAIN, SERVICE_READ_REGISTERS)
-    hass.services.async_remove(DOMAIN, SERVICE_WRITE_REGISTER)
-    hass.services.async_remove(DOMAIN, SERVICE_REFRESH_INVERTER_DATA)
-    hass.services.async_remove(DOMAIN, SERVICE_REFRESH_BATTERY_DATA)
-    hass.services.async_remove(DOMAIN, SERVICE_REFRESH_BATTERY_CONTROLLER_DATA)
-    hass.services.async_remove(DOMAIN, SERVICE_REFRESH_CONFIG_DATA)
+async def read_registers(call: ServiceCall) -> core.ServiceResponse:
+    """Read multiple registers from the inverter."""
+    LOGGER.debug("Reading registers")
+    entry = _get_config_entry(call.hass, call.data.get(ATTR_CONFIG_ENTRY))
+    mqtt_client = entry.runtime_data.mqtt_client
+    attr_register: str = call.data.get(ATTR_REGISTER)
+    attr_register_size: str = call.data.get(ATTR_REGISTER_SIZE)
+    attr_register_format: str | None = call.data.get(ATTR_REGISTER_FORMAT)
+
+    # Validate input
+    try:
+        if attr_register.startswith("0x"):
+            register_start = int(attr_register, 16)
+        else:
+            register_start = int(attr_register)
+    except ValueError as e:
+        LOGGER.error(f"Invalid register: {attr_register}")
+        raise ServiceValidationError("Invalid register", DOMAIN) from e
+    try:
+        if attr_register_size.startswith("0x"):
+            register_size = int(attr_register_size, 16)
+        else:
+            register_size = int(attr_register_size)
+    except ValueError as e:
+        LOGGER.error(f"Invalid register size: {attr_register_size}")
+        raise ServiceValidationError("Invalid register size") from e
+    if attr_register_format and not attr_register_format.startswith(">"):
+        msg = f"Invalid register format: {attr_register_format}"
+        LOGGER.error(msg)
+        raise ServiceValidationError("Invalid register format")
+
+    # Read registers
+    content = await mqtt_client.read_registers(register_start, register_size)
+    if content is None:
+        LOGGER.error("Failed to read registers")
+        raise ServiceValidationError("Failed to read registers")
+
+    # Return response (format if needed, otherwise return bytes)
+    if attr_register_format:
+        results = unpack_from(attr_register_format, content, 0)
+        return {"values": [str(r) for r in results]}
+    return {"values": ":".join(f"{b:02x}" for b in content)}
+
+
+async def write_register(call: ServiceCall) -> None:
+    """Write a single register to the inverter."""
+    LOGGER.debug("Writing register")
+    entry = _get_config_entry(call.hass, call.data.get(ATTR_CONFIG_ENTRY))
+    mqtt_client = entry.runtime_data.mqtt_client
+    attr_register: str = call.data.get(ATTR_REGISTER)
+    attr_register_value: str = call.data.get(ATTR_REGISTER_VALUE)
+
+    # Validate input
+    try:
+        if attr_register.startswith("0x"):
+            register = int(attr_register, 16)
+        else:
+            register = int(attr_register)
+    except ValueError as e:
+        LOGGER.error(f"Invalid register: {attr_register}")
+        raise ServiceValidationError("Invalid register") from e
+    try:
+        if attr_register_value.startswith("0x"):
+            value = int(attr_register_value, 16)
+        else:
+            value = int(attr_register_value)
+    except ValueError as e:
+        LOGGER.error(f"Invalid register value: {attr_register_value}")
+        raise ServiceValidationError("Invalid register value") from e
+
+    # Write register
+    await mqtt_client.write_register(register, value)
+
+
+async def refresh_inverter_data(call: ServiceCall) -> None:
+    """Refresh inverter data."""
+    # Only refresh when coordinator is enabled
+    entry = _get_config_entry(call.hass, call.data.get(ATTR_CONFIG_ENTRY))
+    coordinator = entry.runtime_data.coordinator_inverter_data
+    if coordinator:
+        LOGGER.debug("Refreshing inverter data")
+        await coordinator.async_request_refresh()
+
+
+async def refresh_battery_data(call: ServiceCall) -> None:
+    """Refresh battery data."""
+    # Only refresh when coordinator is enabled
+    entry = _get_config_entry(call.hass, call.data.get(ATTR_CONFIG_ENTRY))
+    coordinator = entry.runtime_data.coordinator_battery_data
+    if coordinator:
+        LOGGER.debug("Refreshing battery data")
+        await coordinator.async_request_refresh()
+
+
+async def refresh_battery_controller_data(call: ServiceCall) -> None:
+    """Refresh battery controller data."""
+    # Only refresh when coordinator is enabled
+    entry = _get_config_entry(call.hass, call.data.get(ATTR_CONFIG_ENTRY))
+    coordinator = entry.runtime_data.coordinator_battery_controller_data
+    if coordinator:
+        LOGGER.debug("Refreshing battery controller data")
+        await coordinator.async_request_refresh()
+
+
+async def refresh_config_data(call: ServiceCall) -> None:
+    """Refresh config data."""
+    # Only refresh when coordinator is enabled
+    entry = _get_config_entry(call.hass, call.data.get(ATTR_CONFIG_ENTRY))
+    coordinator = entry.runtime_data.coordinator_config_data
+    if coordinator:
+        LOGGER.debug("Refreshing config data")
+        await coordinator.async_request_refresh()
+
+
+@callback
+def async_setup_services(hass: HomeAssistant) -> None:
+    """Set up SAJ H1 MQTT services."""
+
+    LOGGER.debug(f"Registering service: {SERVICE_READ_REGISTER}")
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_READ_REGISTER,
+        read_register,
+        schema=vol.Schema(
+            vol.All(
+                {
+                    vol.Optional(ATTR_CONFIG_ENTRY): ConfigEntrySelector(),
+                    vol.Required(ATTR_REGISTER): cv.string,
+                    vol.Optional(ATTR_REGISTER_FORMAT, default=None): vol.Any(
+                        cv.string, None
+                    ),
+                }
+            )
+        ),
+        supports_response=SupportsResponse.ONLY,
+    )
+
+    LOGGER.debug(f"Registering service: {SERVICE_READ_REGISTERS}")
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_READ_REGISTERS,
+        read_registers,
+        schema=vol.Schema(
+            vol.All(
+                {
+                    vol.Optional(ATTR_CONFIG_ENTRY): ConfigEntrySelector(),
+                    vol.Required(ATTR_REGISTER): cv.string,
+                    vol.Required(ATTR_REGISTER_SIZE): cv.string,
+                    vol.Optional(ATTR_REGISTER_FORMAT, default=None): vol.Any(
+                        cv.string, None
+                    ),
+                }
+            )
+        ),
+        supports_response=SupportsResponse.ONLY,
+    )
+
+    LOGGER.debug(f"Registering service: {SERVICE_WRITE_REGISTER}")
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_WRITE_REGISTER,
+        write_register,
+        schema=vol.Schema(
+            vol.All(
+                {
+                    vol.Optional(ATTR_CONFIG_ENTRY): ConfigEntrySelector(),
+                    vol.Required(ATTR_REGISTER): cv.string,
+                    vol.Required(ATTR_REGISTER_VALUE): cv.string,
+                }
+            )
+        ),
+    )
+
+    LOGGER.debug(f"Registering service: {SERVICE_REFRESH_INVERTER_DATA}")
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_REFRESH_INVERTER_DATA,
+        refresh_inverter_data,
+        schema=vol.Schema(
+            vol.All({vol.Optional(ATTR_CONFIG_ENTRY): ConfigEntrySelector()})
+        ),
+    )
+
+    LOGGER.debug(f"Registering service: {SERVICE_REFRESH_BATTERY_DATA}")
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_REFRESH_BATTERY_DATA,
+        refresh_battery_data,
+        schema=vol.Schema(
+            vol.All({vol.Optional(ATTR_CONFIG_ENTRY): ConfigEntrySelector()})
+        ),
+    )
+
+    LOGGER.debug(f"Registering service: {SERVICE_REFRESH_BATTERY_CONTROLLER_DATA}")
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_REFRESH_BATTERY_CONTROLLER_DATA,
+        refresh_battery_controller_data,
+        schema=vol.Schema(
+            vol.All({vol.Optional(ATTR_CONFIG_ENTRY): ConfigEntrySelector()})
+        ),
+    )
+
+    LOGGER.debug(f"Registering service: {SERVICE_REFRESH_CONFIG_DATA}")
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_REFRESH_CONFIG_DATA,
+        refresh_config_data,
+        schema=vol.Schema(
+            vol.All({vol.Optional(ATTR_CONFIG_ENTRY): ConfigEntrySelector()})
+        ),
+    )
 
 
 def _get_config_entry(

@@ -8,6 +8,7 @@ from homeassistant.components import mqtt
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers.typing import ConfigType
 
 from .client import SajH1MqttClient
 from .const import (
@@ -30,10 +31,18 @@ from .coordinator import (
     SajH1MqttInverterDataCoordinator,
     SajH1MqttRealtimeDataCoordinator,
 )
-from .services import async_register_services, async_remove_services
+from .services import async_setup_services
 from .types import SajH1MqttConfigEntry
 
 PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SELECT, Platform.SENSOR]
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Set up SAJ H1 MQTT integration."""
+    # Setup services
+    async_setup_services(hass)
+
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) -> bool:
@@ -145,9 +154,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
     LOGGER.debug(f"Setting up plaforms: {[p.value for p in PLATFORMS]}")
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Register services
-    async_register_services(hass)
-
     # Reload entry when it is updated (options flow)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
@@ -163,8 +169,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) -
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        # Remove services and disconnect the mqtt client
-        async_remove_services(hass)
+        # Disconnect the mqtt client
         await entry.runtime_data.mqtt_client.disconnect()
 
     return unload_ok
