@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
@@ -46,7 +46,7 @@ SELECT_ENTITY_DESCRIPTIONS: tuple[SajH1MqttSelectEntityDescription, ...] = (
         modbus_register_scale=None,
         value_fn=lambda x: AppMode(x).name,
         modbus_register=MODBUS_REG_APP_MODE,
-        modbus_value_fn=lambda x: AppMode[x].value,
+        modbus_value_fn=lambda x: AppMode[str(x)].value,  # from name to value
     ),
 )
 

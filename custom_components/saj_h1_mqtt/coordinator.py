@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import timedelta
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
@@ -61,9 +62,12 @@ class SajH1MqttData:
 class SajH1MqttDataCoordinator(DataUpdateCoordinator, ABC):
     """SAJ H1 MQTT data coordinator."""
 
+    config_entry: ConfigEntry[SajH1MqttData]  # set the right type for config_entry
+
     def __init__(
         self,
         hass: HomeAssistant,
+        config_entry: ConfigEntry[SajH1MqttData],
         mqtt_client: SajH1MqttClient,
         scan_interval: timedelta,
         name: str,
@@ -72,6 +76,7 @@ class SajH1MqttDataCoordinator(DataUpdateCoordinator, ABC):
         super().__init__(
             hass,
             LOGGER,
+            config_entry=config_entry,
             name=f"{DOMAIN}_{name}_coordinator",
             update_interval=scan_interval,
         )

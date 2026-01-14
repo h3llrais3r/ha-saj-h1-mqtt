@@ -246,7 +246,7 @@ class SajH1MqttClient:
                 self.read_responses[req_id] = content
             if req_id in self.write_responses:
                 self.write_responses[req_id] = content
-        except Exception as ex:  # pylint: disable=broad-except
+        except Exception as ex:  # noqa: BLE001
             LOGGER.error(
                 f"Error while handling {MQTT_DATA_TRANSMISSION_RSP} packet: {ex}"
             )
@@ -321,7 +321,7 @@ class SajH1MqttClient:
         - [VALUE] written to the register
         - [CRC] checksum
         """
-        register, value, orig_crc16 = unpack_from(">HHH", packet, 0xA)
+        register, value, orig_crc16 = unpack_from(">HHH", packet, 0xA)  # noqa: RUF059
 
         # Get the CRC
         (crc16,) = unpack_from(">H", packet, 0xE)

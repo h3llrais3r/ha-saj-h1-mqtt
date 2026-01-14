@@ -158,7 +158,8 @@ class SajH1MqttNumberEntity(SajH1MqttEntity, NumberEntity):
     @property
     def native_value(self) -> float | None:
         """Return the value reported by the number."""
-        return self._get_native_value()
+        value = self._get_native_value()
+        return float(value) if value is not None else None
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new value."""

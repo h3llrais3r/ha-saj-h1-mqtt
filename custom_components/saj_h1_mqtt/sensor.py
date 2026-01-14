@@ -44,7 +44,7 @@ from .types import SajH1MqttConfigEntry
 class SajH1MqttSensorEntityDescription(
     SensorEntityDescription, SajH1MqttEntityDescription
 ):
-    """A class that describes SAJ H1 MQTT number entities."""
+    """A class that describes SAJ H1 MQTT sensor entities."""
 
 
 # fmt: off
@@ -190,7 +190,7 @@ REALTIME_PV_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
     modbus_register_scale=1.0,
     value_fn=lambda x: None
     if x is None
-    else (PVState.PRODUCING.value if x > 0 else PVState.STANDBY.value),
+    else (PVState.PRODUCING.value if float(x) > 0 else PVState.STANDBY.value),
 )
 REALTIME_BATTERY_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
     key="realtime_battery_state",
@@ -205,8 +205,10 @@ REALTIME_BATTERY_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
     if x is None
     else (
         BatteryState.DISCHARGING.value
-        if x > 0
-        else (BatteryState.CHARGING.value if x < 0 else BatteryState.STANDBY.value)
+        if float(x) > 0
+        else (
+            BatteryState.CHARGING.value if float(x) < 0 else BatteryState.STANDBY.value
+        )
     ),
 )
 REALTIME_GRID_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
@@ -222,8 +224,8 @@ REALTIME_GRID_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
     if x is None
     else (
         GridState.IMPORTING.value
-        if x > 0
-        else (GridState.EXPORTING.value if x < 0 else GridState.STANDBY.value)
+        if float(x) > 0
+        else (GridState.EXPORTING.value if float(x) < 0 else GridState.STANDBY.value)
     ),
 )
 REALTIME_SYSTEM_LOAD_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
@@ -237,7 +239,7 @@ REALTIME_SYSTEM_LOAD_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription
     modbus_register_scale=1.0,
     value_fn=lambda x: None
     if x is None
-    else (SystemLoadState.CONSUMING.value if x > 0 else GridState.STANDBY.value),
+    else (SystemLoadState.CONSUMING.value if float(x) > 0 else GridState.STANDBY.value),
 )
 
 # Accurate realtime sensors (only used when enabled in config, replaces the original 'realtime_grid_power' and 'realtime_grid_state' sensors)
@@ -264,8 +266,8 @@ ACCURATE_REALTIME_SYSTEM_LOAD_POWER_SENSOR_DESCRIPTION = (
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPower.WATT,
-        modbus_register_offset=None,
-        modbus_register_data_type=None,
+        modbus_register_offset=0,
+        modbus_register_data_type="",
         modbus_register_scale=None,
         value_fn=None,
     )
@@ -283,8 +285,8 @@ ACCURATE_REALTIME_GRID_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescripti
     if x is None
     else (
         GridState.IMPORTING.value
-        if x > 0
-        else (GridState.EXPORTING.value if x < 0 else GridState.STANDBY.value)
+        if float(x) > 0
+        else (GridState.EXPORTING.value if float(x) < 0 else GridState.STANDBY.value)
     ),
 )
 
@@ -295,8 +297,8 @@ INVERTER_TIME_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
     device_class=SensorDeviceClass.TIMESTAMP,
     state_class=None,
     native_unit_of_measurement=None,
-    modbus_register_offset=None,
-    modbus_register_data_type=None,
+    modbus_register_offset=0,
+    modbus_register_data_type="",
     modbus_register_scale=None,
     value_fn=lambda x: None,
 )
@@ -600,22 +602,22 @@ class SajH1MqttRealtimeSystemLoadPowerSensorEntity(SajH1MqttSensorEntity):
         self._smart_meter_1 = SajH1MqttSensorEntity(coordinator, smart_meter_1)
         self._smart_meter_2 = SajH1MqttSensorEntity(coordinator, smart_meter_2)
 
-    def _get_system_load_power(self) -> int | float | str | None:
+    def _get_system_load_power(self) -> float | None:
         """Get the system load power sensor value."""
         val = self._system_load.native_value
-        return val if val else 0.0
+        return float(val) if val is not None else None
 
-    def _get_smart_meter_1_power(self) -> int | float | str | None:
+    def _get_smart_meter_1_power(self) -> float | None:
         """Get the smart meter 1 power sensor value."""
         val = self._smart_meter_1.native_value
-        return val if val else 0.0
+        return float(val) if val is not None else None
 
-    def _get_smart_meter_2_power(self) -> int | float | str | None:
+    def _get_smart_meter_2_power(self) -> float | None:
         """Get the smart meter 2 power sensor value."""
         val = self._smart_meter_2.native_value
-        return val if val else 0.0
+        return float(val) if val is not None else None
 
-    def _get_native_value(self) -> int | float | str | None:
+    def _get_native_value(self) -> float | None:
         """Get the native value for the entity.
 
         The realtime system load power sensor is the sum of:
@@ -628,11 +630,20 @@ class SajH1MqttRealtimeSystemLoadPowerSensorEntity(SajH1MqttSensorEntity):
         if payload is None:
             return None
 
-        value = (
-            self._get_system_load_power()
-            + self._get_smart_meter_1_power()
-            + self._get_smart_meter_2_power()
-        )
+        system_load_power = self._get_system_load_power()
+        smart_meter_1_power = self._get_smart_meter_1_power()
+        smart_meter_2_power = self._get_smart_meter_2_power()
+
+        # Return None if any of the required values is None
+        if (
+            system_load_power is None
+            or smart_meter_1_power is None
+            or smart_meter_2_power is None
+        ):
+            return None
+
+        # Calculate the realtime system load power
+        value = system_load_power + smart_meter_1_power + smart_meter_2_power
 
         LOGGER.debug(
             f"Entity: {self.entity_id}, value: {value}{' ' + self.unit_of_measurement if self.unit_of_measurement else ''}"
@@ -671,7 +682,7 @@ class SajH1MqttInverterTimeSensorEntity(SajH1MqttSensorEntity):
         self._reserved = SajH1MqttSensorEntity(coordinator, reserved)
         self._zone_info = ZoneInfo(time_zone or "UTC")  # fallback to UTC
 
-    def _get_native_value(self) -> int | float | str | None:
+    def _get_native_value(self) -> datetime | None:
         """Get the native value for the entity.
 
         The datetime is constructed from the different time registers.
@@ -689,10 +700,25 @@ class SajH1MqttInverterTimeSensorEntity(SajH1MqttSensorEntity):
         mi = self._minute.native_value
         ss = self._second.native_value
 
-        # Create timezone aware datetime
+        # Create timezone aware datetime (needs int values for datetime constructor)
         value = None
-        if all(x is not None for x in [yyyy, mm, dd, hh, mi, ss]):
-            value = datetime(yyyy, mm, dd, hh, mi, ss, tzinfo=self._zone_info)
+        if (
+            yyyy is not None
+            and mm is not None
+            and dd is not None
+            and hh is not None
+            and mi is not None
+            and ss is not None
+        ):
+            value = datetime(
+                int(yyyy),
+                int(mm),
+                int(dd),
+                int(hh),
+                int(mi),
+                int(ss),
+                tzinfo=self._zone_info,
+            )
 
         LOGGER.debug(
             f"Entity: {self.entity_id}, value: {value}{' ' + self.unit_of_measurement if self.unit_of_measurement else ''}"

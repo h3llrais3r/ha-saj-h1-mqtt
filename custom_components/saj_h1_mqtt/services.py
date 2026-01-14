@@ -32,15 +32,15 @@ from .const import (
 from .types import SajH1MqttConfigEntry
 
 
-def async_register_services(hass: HomeAssistant) -> None:
+def async_register_services(hass: HomeAssistant) -> None:  # noqa: C901
     """Register services for SAJ H1 MQTT integration."""
 
     async def read_register(call: ServiceCall) -> core.ServiceResponse:
         LOGGER.debug("Reading register")
-        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY))
         mqtt_client = entry.runtime_data.mqtt_client
-        attr_register: str = call.data[ATTR_REGISTER]
-        attr_register_format: str | None = call.data[ATTR_REGISTER_FORMAT]
+        attr_register: str = call.data.get(ATTR_REGISTER)
+        attr_register_format: str | None = call.data.get(ATTR_REGISTER_FORMAT)
         # Validate input
         try:
             if attr_register.startswith("0x"):
@@ -87,11 +87,11 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def read_registers(call: ServiceCall) -> core.ServiceResponse:
         LOGGER.debug("Reading registers")
-        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY))
         mqtt_client = entry.runtime_data.mqtt_client
-        attr_register: str = call.data[ATTR_REGISTER]
-        attr_register_size: str = call.data[ATTR_REGISTER_SIZE]
-        attr_register_format: str | None = call.data[ATTR_REGISTER_FORMAT]
+        attr_register: str = call.data.get(ATTR_REGISTER)
+        attr_register_size: str = call.data.get(ATTR_REGISTER_SIZE)
+        attr_register_format: str | None = call.data.get(ATTR_REGISTER_FORMAT)
         # Validate input
         try:
             if attr_register.startswith("0x"):
@@ -147,10 +147,10 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def write_register(call: ServiceCall) -> None:
         LOGGER.debug("Writing register")
-        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY))
         mqtt_client = entry.runtime_data.mqtt_client
-        attr_register: str = call.data[ATTR_REGISTER]
-        attr_register_value: str = call.data[ATTR_REGISTER_VALUE]
+        attr_register: str = call.data.get(ATTR_REGISTER)
+        attr_register_value: str = call.data.get(ATTR_REGISTER_VALUE)
         # Validate input
         try:
             if attr_register.startswith("0x"):
@@ -190,7 +190,7 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def refresh_inverter_data(call: ServiceCall) -> None:
         # Only refresh when coordinator is enabled
-        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY))
         coordinator = entry.runtime_data.coordinator_inverter_data
         if coordinator:
             LOGGER.debug("Refreshing inverter data")
@@ -209,7 +209,7 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def refresh_battery_data(call: ServiceCall) -> None:
         # Only refresh when coordinator is enabled
-        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY))
         coordinator = entry.runtime_data.coordinator_battery_data
         if coordinator:
             LOGGER.debug("Refreshing battery data")
@@ -228,7 +228,7 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def refresh_battery_controller_data(call: ServiceCall) -> None:
         # Only refresh when coordinator is enabled
-        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY))
         coordinator = entry.runtime_data.coordinator_battery_controller_data
         if coordinator:
             LOGGER.debug("Refreshing battery controller data")
@@ -247,7 +247,7 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def refresh_config_data(call: ServiceCall) -> None:
         # Only refresh when coordinator is enabled
-        entry = _get_config_entry(hass, call.data[ATTR_CONFIG_ENTRY])
+        entry = _get_config_entry(hass, call.data.get(ATTR_CONFIG_ENTRY))
         coordinator = entry.runtime_data.coordinator_config_data
         if coordinator:
             LOGGER.debug("Refreshing config data")
@@ -276,7 +276,9 @@ def async_remove_services(hass: HomeAssistant) -> None:
     hass.services.async_remove(DOMAIN, SERVICE_REFRESH_CONFIG_DATA)
 
 
-def _get_config_entry(hass: HomeAssistant, entry_id: str) -> SajH1MqttConfigEntry:
+def _get_config_entry(
+    hass: HomeAssistant, entry_id: str | None
+) -> SajH1MqttConfigEntry:
     """Return the config entry or raise error if not found or not loaded."""
     # Get the specified config entry, or fallback to first one if not specified
     if not (entry := hass.config_entries.async_get_entry(entry_id)):

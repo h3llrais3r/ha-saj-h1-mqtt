@@ -45,7 +45,7 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
     def __init__(
         self,
         coordinator: SajH1MqttDataCoordinator,
-        description: SajH1MqttEntityDescription | None = None,
+        description: SajH1MqttEntityDescription,
     ) -> None:
         """Initialize the entity."""
         super().__init__(coordinator)
@@ -98,6 +98,11 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
 
     def _get_native_value(self) -> int | float | str | None:
         """Get the native value for the entity."""
+        # Custom non modbus entities require custom implementation
+        # Raise error here to enforce implementation in those non modbus entities
+        if not self._offset and not self._data_type:
+            raise NotImplementedError
+
         # Return None if no coordinator data
         payload = self.coordinator.data
         if payload is None:
@@ -119,21 +124,21 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
                 )
 
             # Set sensor value (taking scale into account, scale should ALWAYS contain a .)
-            if self._scale is not None:
+            if value is not None and self._scale is not None:
                 digits = max(0, str(self._scale)[::-1].find("."))
-                value = round(value * float(self._scale), digits)
+                value = round(float(value) * float(self._scale), digits)
                 # If scale is a str, format the value with the same precision
                 if isinstance(self._scale, str):
                     value = "{:.{precision}f}".format(value, precision=digits)
 
             # Value conversion function
-            if self._value_fn:
+            if value is not None and self._value_fn:
                 value = self._value_fn(value)
 
             # Custom native value implementation
             value = self._custom_native_value(value)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             LOGGER.error(
                 f"Unable to get native value for entity: {self.entity_id or self.name}",
                 e,
@@ -157,8 +162,8 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
 
 
 def get_entity_description(
-    descriptions: tuple[EntityDescription], key: str
-) -> EntityDescription | None:
+    descriptions: tuple[SajH1MqttEntityDescription, ...], key: str
+) -> SajH1MqttEntityDescription:
     """Get an entity description by its 'key' from a tuple of entity descriptions."""
     description = next(
         (d for d in descriptions if d.key == key),

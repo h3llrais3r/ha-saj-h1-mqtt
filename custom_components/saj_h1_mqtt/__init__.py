@@ -87,21 +87,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
 
     # Realtime data coordinator
     coordinator_realtime_data = SajH1MqttRealtimeDataCoordinator(
-        hass, mqtt_client, scan_interval_realtime_data, "realtime_data"
+        hass, entry, mqtt_client, scan_interval_realtime_data, "realtime_data"
     )
 
     # Inverter data coordinators
     coordinator_inverter_data: SajH1MqttInverterDataCoordinator | None = None
     if scan_interval_inverter_data:
         coordinator_inverter_data = SajH1MqttInverterDataCoordinator(
-            hass, mqtt_client, scan_interval_inverter_data, "inverter_data"
+            hass, entry, mqtt_client, scan_interval_inverter_data, "inverter_data"
         )
 
     # Battery data coordinator
     coordinator_battery_data: SajH1MqttBatteryDataCoordinator | None = None
     if scan_interval_battery_data:
         coordinator_battery_data = SajH1MqttBatteryDataCoordinator(
-            hass, mqtt_client, scan_interval_battery_data, "battery_data"
+            hass, entry, mqtt_client, scan_interval_battery_data, "battery_data"
         )
 
     # Battery controller data coordinators
@@ -111,6 +111,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
     if scan_interval_battery_controller_data:
         coordinator_battery_controller_data = SajH1MqttBatteryControllerDataCoordinator(
             hass,
+            entry,
             mqtt_client,
             scan_interval_battery_controller_data,
             "battery_controller_data",
@@ -120,7 +121,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
     coordinator_config_data: SajH1MqttConfigDataCoordinator | None = None
     if scan_interval_config_data:
         coordinator_config_data = SajH1MqttConfigDataCoordinator(
-            hass, mqtt_client, scan_interval_config_data, "config_data"
+            hass, entry, mqtt_client, scan_interval_config_data, "config_data"
         )
 
     # Entry runtime data
@@ -191,7 +192,8 @@ async def async_first_refresh_on_mqtt_birth_message(
 
     # Subscribe to the birth message topic
     topic = _get_birth_message_topic(hass)
-    unsubscribe_callback = await mqtt.async_subscribe(hass, topic, on_message)
+    if topic:
+        unsubscribe_callback = await mqtt.async_subscribe(hass, topic, on_message)
 
 
 def _get_birth_message_topic(hass: HomeAssistant) -> str | None:
