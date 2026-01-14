@@ -198,6 +198,7 @@ async def async_first_refresh_on_mqtt_birth_message(
     # Subscribe to the birth message topic
     topic = _get_birth_message_topic(hass)
     if topic:
+        LOGGER.debug(f"Subscribing to birth topic: {topic}")
         unsubscribe_callback = await mqtt.async_subscribe(hass, topic, on_message)
 
 
