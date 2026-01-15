@@ -291,12 +291,12 @@ def _get_config_entry(
         if not entries or len(entries) == 0:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
-                translation_key="entry_not_found",
+                translation_key="config_entry_not_found",
             )
         entry = entries[0]
     if entry.state is not ConfigEntryState.LOADED:
         raise ServiceValidationError(
             translation_domain=DOMAIN,
-            translation_key="entry_not_loaded",
+            translation_key="config_entry_not_loaded",
         )
     return entry

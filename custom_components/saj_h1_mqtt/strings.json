@@ -15,6 +15,14 @@
       "mqtt_required": "This integration requires MQTT.\nPlease set up the MQTT integration first."
     }
   },
+  "exceptions": {
+    "config_entry_not_found": {
+      "message": "Config entry not found. Please make sure that the config entry ID is correct."
+    },
+    "config_entry_not_loaded": {
+      "message": "Config entry not loaded. Please make sure that the SAJ H1 MQTT integration is set up correctly."
+    }
+  },
   "options": {
     "step": {
       "init": {
