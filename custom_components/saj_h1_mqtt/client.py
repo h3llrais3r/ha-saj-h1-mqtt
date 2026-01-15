@@ -19,7 +19,7 @@ from .const import (
     MODBUS_DEVICE_ADDRESS,
     MODBUS_MAX_REGISTERS_PER_QUERY,
     MODBUS_READ_REQUEST,
-    MODBUS_WRITE_MUTIPLE_REQUEST,
+    MODBUS_WRITE_MULTIPLE_REQUEST,
     MODBUS_WRITE_REQUEST,
     MQTT_DATA_TRANSMISSION,
     MQTT_DATA_TRANSMISSION_RSP,
@@ -343,7 +343,7 @@ class SajH1MqttClient:
             content = self._parse_read_packet(packet)
         elif req_type == MODBUS_WRITE_REQUEST:
             content = self._parse_write_packet(packet)
-        elif req_type == MODBUS_WRITE_MUTIPLE_REQUEST:
+        elif req_type == MODBUS_WRITE_MULTIPLE_REQUEST:
             content = self._parse_write_multiple_packet(packet)
         else:
             raise ValueError(f"Unsupported request type: {log_hex(req_type)}")
@@ -497,7 +497,7 @@ class SajH1MqttClient:
         content = pack(
             ">BBHHB",
             MODBUS_DEVICE_ADDRESS,
-            MODBUS_WRITE_MUTIPLE_REQUEST,
+            MODBUS_WRITE_MULTIPLE_REQUEST,
             register_start,
             count,
             size,
@@ -506,7 +506,7 @@ class SajH1MqttClient:
         for value in values:
             content += pack(">H", value)
 
-        return self._create_modbus_mqtt_packet(MODBUS_WRITE_MUTIPLE_REQUEST, content)
+        return self._create_modbus_mqtt_packet(MODBUS_WRITE_MULTIPLE_REQUEST, content)
 
     def _create_modbus_mqtt_packet(
         self, req_type: int, content: bytes
