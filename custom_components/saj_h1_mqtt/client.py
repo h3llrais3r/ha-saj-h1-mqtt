@@ -18,7 +18,10 @@ from .const import (
     LOGGER,
     MODBUS_DEVICE_ADDRESS,
     MODBUS_MAX_REGISTERS_PER_QUERY,
+    MODBUS_READ_ERROR,
     MODBUS_READ_REQUEST,
+    MODBUS_WRITE_ERROR,
+    MODBUS_WRITE_MULTIPLE_ERROR,
     MODBUS_WRITE_MULTIPLE_REQUEST,
     MODBUS_WRITE_REQUEST,
     MQTT_DATA_TRANSMISSION,
@@ -348,6 +351,13 @@ class SajH1MqttClient:
             content = self._parse_write_packet(packet)
         elif req_type == MODBUS_WRITE_MULTIPLE_REQUEST:
             content = self._parse_write_multiple_packet(packet)
+        elif req_type in [
+            MODBUS_READ_ERROR,
+            MODBUS_WRITE_ERROR,
+            MODBUS_WRITE_MULTIPLE_ERROR,
+        ]:
+            content = self._parse_error_packet(packet)
+            raise ValueError(f"Modbus error code: {log_hex(content)}")
         else:
             raise ValueError(f"Unsupported request type: {log_hex(req_type)}")
 
@@ -442,6 +452,32 @@ class SajH1MqttClient:
             raise ValueError("Invalid CRC: expected {calc_crc}, received {crc16}")
 
         return count
+
+    def _parse_error_packet(self, packet) -> int:
+        """Parse a mqtt error packet.
+
+        Packet consists of [ERROR_CODE][CRC]:
+        - [ERROR_CODE] the error code
+        - [CRC] checksum
+        """
+        error_code, orig_crc16 = unpack_from(">BH", packet, 0xA)  # noqa: RUF059
+
+        # Get the CRC
+        (crc16,) = unpack_from(">H", packet, 0xE)
+
+        # CRC is calculated starting from "request" at offset 0x3a
+        calc_crc = computeCRC(packet[0x8:0xE])
+
+        debug(f"Error code: {log_hex(error_code)}", self.debug_mqtt)
+        debug(
+            f"CRC16: {log_hex(crc16)} -> {'ok' if crc16 == calc_crc else 'bad'}",
+            self.debug_mqtt,
+        )
+
+        if crc16 != calc_crc:
+            raise ValueError("Invalid CRC: expected {calc_crc}, received {crc16}")
+
+        return error_code
 
     def _create_mqtt_read_packet(
         self, register_start: int, count: int
