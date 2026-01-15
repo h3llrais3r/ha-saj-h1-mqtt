@@ -378,7 +378,7 @@ class SajH1MqttClient:
         content = packet[0xB : 0xB + size]
 
         # Get the CRC
-        (crc16,) = unpack_from(">H", packet, 0xB + size)
+        (crc,) = unpack_from(">H", packet, 0xB + size)
 
         # CRC is calculated starting from "request" at offset 0x3a
         calc_crc = computeCRC(packet[0x8 : 0xB + size])
@@ -388,12 +388,12 @@ class SajH1MqttClient:
             f"Content bytes: {':'.join(f'{b:02x}' for b in content)}", self.debug_mqtt
         )
         debug(
-            f"CRC16: {log_hex(crc16)} -> {'ok' if crc16 == calc_crc else 'bad'}",
+            f"CRC: {log_hex(crc)} -> {'ok' if crc == calc_crc else 'bad'}",
             self.debug_mqtt,
         )
 
-        if crc16 != calc_crc:
-            raise ValueError("Invalid CRC: expected {calc_crc}, received {crc16}")
+        if crc != calc_crc:
+            raise ValueError("Invalid CRC: expected {calc_crc}, received {crc}")
 
         return content
 
@@ -405,10 +405,10 @@ class SajH1MqttClient:
         - [VALUE] written to the register
         - [CRC] checksum
         """
-        register, value, orig_crc16 = unpack_from(">HHH", packet, 0xA)  # noqa: RUF059
+        register, value, orig_crc = unpack_from(">HHH", packet, 0xA)  # noqa: RUF059
 
         # Get the CRC
-        (crc16,) = unpack_from(">H", packet, 0xE)
+        (crc,) = unpack_from(">H", packet, 0xE)
 
         # CRC is calculated starting from "request" at offset 0x3a
         calc_crc = computeCRC(packet[0x8:0xE])
@@ -416,12 +416,12 @@ class SajH1MqttClient:
         debug(f"Written register: {log_hex(register)}", self.debug_mqtt)
         debug(f"Written value: {log_hex(value)}", self.debug_mqtt)
         debug(
-            f"CRC16: {log_hex(crc16)} -> {'ok' if crc16 == calc_crc else 'bad'}",
+            f"CRC: {log_hex(crc)} -> {'ok' if crc == calc_crc else 'bad'}",
             self.debug_mqtt,
         )
 
-        if crc16 != calc_crc:
-            raise ValueError("Invalid CRC: expected {calc_crc}, received {crc16}")
+        if crc != calc_crc:
+            raise ValueError("Invalid CRC: expected {calc_crc}, received {crc}")
 
         return value
 
@@ -433,10 +433,10 @@ class SajH1MqttClient:
         - [COUNT] the number of registers written
         - [CRC] checksum
         """
-        register_start, count, orig_crc16 = unpack_from(">HHH", packet, 0xA)  # noqa: RUF059
+        register_start, count, orig_crc = unpack_from(">HHH", packet, 0xA)  # noqa: RUF059
 
         # Get the CRC
-        (crc16,) = unpack_from(">H", packet, 0xE)
+        (crc,) = unpack_from(">H", packet, 0xE)
 
         # CRC is calculated starting from "request" at offset 0x3a
         calc_crc = computeCRC(packet[0x8:0xE])
@@ -444,12 +444,12 @@ class SajH1MqttClient:
         debug(f"First register written: {log_hex(register_start)}", self.debug_mqtt)
         debug(f"Number of registers written: {log_hex(count)}", self.debug_mqtt)
         debug(
-            f"CRC16: {log_hex(crc16)} -> {'ok' if crc16 == calc_crc else 'bad'}",
+            f"CRC: {log_hex(crc)} -> {'ok' if crc == calc_crc else 'bad'}",
             self.debug_mqtt,
         )
 
-        if crc16 != calc_crc:
-            raise ValueError("Invalid CRC: expected {calc_crc}, received {crc16}")
+        if crc != calc_crc:
+            raise ValueError("Invalid CRC: expected {calc_crc}, received {crc}")
 
         return count
 
@@ -460,22 +460,22 @@ class SajH1MqttClient:
         - [ERROR_CODE] the error code
         - [CRC] checksum
         """
-        error_code, orig_crc16 = unpack_from(">BH", packet, 0xA)  # noqa: RUF059
+        error_code, orig_crc = unpack_from(">BH", packet, 0xA)  # noqa: RUF059
 
         # Get the CRC
-        (crc16,) = unpack_from(">H", packet, 0xE)
+        (crc,) = unpack_from(">H", packet, 0xE)
 
         # CRC is calculated starting from "request" at offset 0x3a
         calc_crc = computeCRC(packet[0x8:0xE])
 
         debug(f"Error code: {log_hex(error_code)}", self.debug_mqtt)
         debug(
-            f"CRC16: {log_hex(crc16)} -> {'ok' if crc16 == calc_crc else 'bad'}",
+            f"CRC: {log_hex(crc)} -> {'ok' if crc == calc_crc else 'bad'}",
             self.debug_mqtt,
         )
 
-        if crc16 != calc_crc:
-            raise ValueError("Invalid CRC: expected {calc_crc}, received {crc16}")
+        if crc != calc_crc:
+            raise ValueError("Invalid CRC: expected {calc_crc}, received {crc}")
 
         return error_code
 
@@ -555,16 +555,16 @@ class SajH1MqttClient:
         The mqtt packet encapsulates the modbus packet to interact with the interter.
         """
         # Compute CRC of modbus content
-        crc16 = computeCRC(content)
+        crc = computeCRC(content)
 
         # Assemble the modbus content into the mqtt packet framework
         req_id = int(random() * 65536)
         rand = int(random() * 65536)
-        packet = pack(">HBBH", req_id, 0x58, 0xC9, rand) + content + pack(">H", crc16)
+        packet = pack(">HBBH", req_id, 0x58, 0xC9, rand) + content + pack(">H", crc)
 
         debug(f"Request id: {log_hex(req_id)}", self.debug_mqtt)
         debug(f"Request type: {log_hex(req_type)}", self.debug_mqtt)
-        debug(f"CRC16: {log_hex(crc16)}", self.debug_mqtt)
+        debug(f"CRC: {log_hex(crc)}", self.debug_mqtt)
         debug(f"Request length: {len(packet)} bytes", self.debug_mqtt)
         debug(f"Request bytes: {':'.join(f'{b:02x}' for b in packet)}", self.debug_mqtt)
 
