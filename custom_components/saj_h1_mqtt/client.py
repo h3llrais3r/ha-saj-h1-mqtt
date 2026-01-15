@@ -15,6 +15,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
+    BRAND,
     LOGGER,
     MODBUS_DEVICE_ADDRESS,
     MODBUS_MAX_REGISTERS_PER_QUERY,
@@ -49,10 +50,10 @@ class SajH1MqttClient:
         self.serial_number = serial_number
         self.debug_mqtt = debug_mqtt
         self.topic_data_transmission = (
-            f"saj/{self.serial_number}/{MQTT_DATA_TRANSMISSION}"
+            f"{BRAND.lower()}/{self.serial_number}/{MQTT_DATA_TRANSMISSION}"
         )
         self.topic_data_transmission_rsp = (
-            f"saj/{self.serial_number}/{MQTT_DATA_TRANSMISSION_RSP}"
+            f"{BRAND.lower()}/{self.serial_number}/{MQTT_DATA_TRANSMISSION_RSP}"
         )
 
         self.read_responses = OrderedDict()
@@ -552,7 +553,7 @@ class SajH1MqttClient:
     ) -> tuple[bytes, int]:
         """Create a modbus mqtt packet.
 
-        The mqtt packet encapsulates the modbus packet to interact with the interter.
+        The mqtt packet encapsulates the modbus packet to interact with the inverter.
         """
         # Compute CRC of modbus content
         crc = computeCRC(content)
