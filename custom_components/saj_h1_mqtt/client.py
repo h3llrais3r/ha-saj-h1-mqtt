@@ -324,17 +324,20 @@ class SajH1MqttClient:
         """Parse a mqtt packet.
 
         Packet consists of [HEADER][PACKET_DATA]:
-        - [HEADER] consists of [LENGTH][REQ_ID][TIMESTAMP][REQ_TYPE]
+        - [HEADER] consists of [LENGTH][REQ_ID][TIMESTAMP][DEVICE_ADDRESS][REQ_TYPE]
         - [PACKET_DATA] see specific packet parsing
         """
         # Parse the header
-        length, req_id, timestamp, req_type = unpack_from(">HHIH", packet, 0x00)
-        req_type -= (
-            0x100  # substract 0x100 to match the request type (modbus read or write)
+        length, req_id, timestamp, device_address, req_type = unpack_from(
+            ">HHIBB", packet, 0x00
         )
         date = datetime.fromtimestamp(timestamp)
 
+        debug(
+            f"Response bytes: {':'.join(f'{b:02x}' for b in packet)}", self.debug_mqtt
+        )
         debug(f"Request id: {log_hex(req_id)}", self.debug_mqtt)
+        debug(f"Device address: {log_hex(device_address)}", self.debug_mqtt)
         debug(f"Request type: {log_hex(req_type)}", self.debug_mqtt)
         debug(f"Length: {length} bytes", self.debug_mqtt)
         debug(f"Timestamp: {date}", self.debug_mqtt)
@@ -370,9 +373,9 @@ class SajH1MqttClient:
         # CRC is calculated starting from "request" at offset 0x3a
         calc_crc = computeCRC(packet[0x8 : 0xB + size])
 
-        debug(f"Response length: {size} bytes", self.debug_mqtt)
+        debug(f"Content length: {size} bytes", self.debug_mqtt)
         debug(
-            f"Response bytes: {':'.join(f'{b:02x}' for b in content)}", self.debug_mqtt
+            f"Content bytes: {':'.join(f'{b:02x}' for b in content)}", self.debug_mqtt
         )
         debug(
             f"CRC16: {log_hex(crc16)} -> {'ok' if crc16 == calc_crc else 'bad'}",
