@@ -17,14 +17,6 @@ from .entity import SajH1MqttEntity, SajH1MqttEntityDescription
 from .types import SajH1MqttConfigEntry
 
 
-async def _modbus_write_and_refresh_coordinator(
-    coordinator: SajH1MqttDataCoordinator, modbus_register: int, modbus_value: int
-) -> None:
-    # Write modbus register and refresh coordinator
-    await coordinator.mqtt_client.write_register(modbus_register, modbus_value)
-    await coordinator.async_request_refresh()
-
-
 @dataclass(frozen=True, kw_only=True)
 class SajH1MqttSelectEntityDescription(
     SelectEntityDescription, SajH1MqttEntityDescription
