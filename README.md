@@ -64,3 +64,4 @@ The following services are available:
 - `saj_h1_mqtt.refresh_battery_data`, to refresh the battery data sensors
 - `saj_h1_mqtt.refresh_battery_controller_data`, to refresh the battery controller data sensors
 - `saj_h1_mqtt.refresh_config_data`, to refresh the config data sensors
+- `saj_h1_mqtt.sync_inverter_time`, to synchronize the inverter time to the local system time

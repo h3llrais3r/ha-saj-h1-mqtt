@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from struct import unpack_from
+from zoneinfo import ZoneInfo
 
 import voluptuous as vol
 
@@ -21,12 +23,15 @@ from .const import (
     ATTR_REGISTER_VALUE,
     DOMAIN,
     LOGGER,
+    MODBUS_REG_INVERTER_TIME_READ,
+    MODBUS_REG_INVERTER_TIME_WRITE,
     SERVICE_READ_REGISTER,
     SERVICE_READ_REGISTERS,
     SERVICE_REFRESH_BATTERY_CONTROLLER_DATA,
     SERVICE_REFRESH_BATTERY_DATA,
     SERVICE_REFRESH_CONFIG_DATA,
     SERVICE_REFRESH_INVERTER_DATA,
+    SERVICE_SYNC_INVERTER_TIME,
     SERVICE_WRITE_REGISTER,
 )
 from .types import SajH1MqttConfigEntry
@@ -181,6 +186,45 @@ async def refresh_config_data(call: ServiceCall) -> None:
         await coordinator.async_request_refresh()
 
 
+async def sync_inverter_time(call: ServiceCall) -> core.ServiceResponse:
+    """Sync inverter time with local time."""
+    LOGGER.debug("Syncing inverter time")
+    entry = _get_config_entry(call.hass, call.data.get(ATTR_CONFIG_ENTRY))
+    mqtt_client = entry.runtime_data.mqtt_client
+
+    # Get current inverter time
+    content = await mqtt_client.read_registers(MODBUS_REG_INVERTER_TIME_READ, 0x4)
+    if content is None:
+        LOGGER.error("Failed to read inverter time")
+        raise ServiceValidationError("Failed to read inverter time")
+    [yyyy, mm, dd, hh, mi, ss, zz] = unpack_from(">HBBBBBB", content)  # zz = weekday
+    inverter_time = datetime(yyyy, mm, dd, hh, mi, ss)
+    LOGGER.debug(f"Current inverter time: {inverter_time.isoformat()}, weekday: {zz}")
+
+    # Determine local time
+    local_tz = ZoneInfo(call.hass.config.time_zone or "UTC")  # use system timezone
+    local_time = datetime.now(local_tz).replace(microsecond=0)
+    LOGGER.debug(
+        f"Local time: {local_time.isoformat()}, weekday: {local_time.isoweekday()}"
+    )
+
+    # Write local time to inverter
+    # We can ignore weekday (and send 00) as it's calculated by inverter
+    year = local_time.year
+    month_day = local_time.month << 8 | local_time.day
+    hour_minute = local_time.hour << 8 | local_time.minute
+    second_zz = local_time.second << 8  # zz = 00
+    # second_weekday = local_time.second << 8 | local_time.isoweekday()
+    await mqtt_client.write_registers(
+        MODBUS_REG_INVERTER_TIME_WRITE,
+        [year, month_day, hour_minute, second_zz],
+    )
+    LOGGER.info(f"Inverter time synchronized to local time: {local_time.isoformat()}")
+
+    # Return response
+    return {"time": local_time.isoformat()}
+
+
 @callback
 def async_setup_services(hass: HomeAssistant) -> None:
     """Set up SAJ H1 MQTT services."""
@@ -278,6 +322,17 @@ def async_setup_services(hass: HomeAssistant) -> None:
         schema=vol.Schema(
             vol.All({vol.Optional(ATTR_CONFIG_ENTRY): ConfigEntrySelector()})
         ),
+    )
+
+    LOGGER.debug(f"Registering service: {SERVICE_SYNC_INVERTER_TIME}")
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SYNC_INVERTER_TIME,
+        sync_inverter_time,
+        schema=vol.Schema(
+            vol.All({vol.Optional(ATTR_CONFIG_ENTRY): ConfigEntrySelector()})
+        ),
+        supports_response=SupportsResponse.ONLY,
     )
 
 
