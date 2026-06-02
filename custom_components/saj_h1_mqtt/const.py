@@ -22,6 +22,9 @@ CONF_SCAN_INTERVAL_CONFIG_DATA = "scan_interval_config_data"
 CONF_ENABLE_SERIAL_NUMBER_PREFIX = "enable_serial_number_prefix"
 CONF_ENABLE_ACCURATE_REALTIME_POWER_DATA = "enable_accurate_realtime_power_data"
 CONF_ENABLE_MQTT_DEBUG = "enable_mqtt_debug"
+CONF_PROTOCOL = "protocol"
+CONF_MODBUS_HOST = "modbus_host"
+CONF_MODBUS_PORT = "modbus_port"
 
 # Service constants
 SERVICE_READ_REGISTER = "read_register"
@@ -41,10 +44,15 @@ ATTR_REGISTER_SIZE = "register_size"
 ATTR_REGISTER_VALUE = "register_value"
 ATTR_APP_MODE = "app_mode"
 
+# Protocol constants
+PROTOCOL_MQTT = "mqtt"
+PROTOCOL_MODBUS = "modbus"
+
 # Modbus constants
-MODBUS_MAX_REGISTERS_PER_QUERY = (
-    0x64  # Absolute max is 123 (0x7b) registers per MQTT packet request (do not exceed)
-)
+MODBUS_RETRY_COUNT = 3
+MODBUS_RETRY_DELAY = 0.05  # time in seconds
+MODBUS_TIMEOUT = 5  # time in seconds
+MODBUS_MAX_REGISTERS = 0x64  # absolute max is 123 (0x7b) registers (over mqtt), 125 (0x7d) registers (over modbus) per query
 MODBUS_DEVICE_ADDRESS = 0x01
 MODBUS_READ_REQUEST = 0x03
 MODBUS_WRITE_REQUEST = 0x06
@@ -75,6 +83,7 @@ MQTT_DATA_TRANSMISSION_TIMEOUT = 10
 MQTT_WAIT_SLEEP_TIME = 0.05  # time in s
 
 # Default constants
+DEFAULT_MODBUS_PORT = 502
 DEFAULT_SCAN_INTERVAL = timedelta(seconds=60)
 
 LOGGER = logging.getLogger(__package__)

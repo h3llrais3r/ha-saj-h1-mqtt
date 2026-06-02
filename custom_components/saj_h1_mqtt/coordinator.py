@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .client import SajH1MqttClient
+from .client import SajH1Client
 from .const import DOMAIN, LOGGER
 from .utils import log_hex
 
@@ -19,7 +19,7 @@ from .utils import log_hex
 class SajH1MqttData:
     """SAJ H1 MQTT data."""
 
-    mqtt_client: SajH1MqttClient
+    client: SajH1Client
     coordinator_realtime_data: SajH1MqttRealtimeDataCoordinator
     coordinator_inverter_data: SajH1MqttInverterDataCoordinator | None
     coordinator_battery_data: SajH1MqttBatteryDataCoordinator | None
@@ -68,7 +68,7 @@ class SajH1MqttDataCoordinator(DataUpdateCoordinator, ABC):
         self,
         hass: HomeAssistant,
         config_entry: ConfigEntry[SajH1MqttData],
-        mqtt_client: SajH1MqttClient,
+        client: SajH1Client,
         scan_interval: timedelta,
         name: str,
     ) -> None:
@@ -80,7 +80,7 @@ class SajH1MqttDataCoordinator(DataUpdateCoordinator, ABC):
             name=f"{DOMAIN}_{name}_coordinator",
             update_interval=scan_interval,
         )
-        self.mqtt_client = mqtt_client
+        self.client = client
         self.data: bytearray | None = None
         self.ready = False
 
@@ -103,11 +103,15 @@ class SajH1MqttRealtimeDataCoordinator(SajH1MqttDataCoordinator):
     async def _async_fetch_data(self) -> bytearray | None:
         """Fetch the realtime data."""
         reg_start = 0x4000
-        reg_count = 0x100  # 256 registers
+        reg_count = 0x100  # 256 registers (chunks: 118 - realtime, 73 - summaries , 65 - energies)
+        reg_chunks = [0x76, 0x49, 0x41]  # split into 3 chunks grouped by data
         LOGGER.debug(
             f"Fetching realtime data at {log_hex(reg_start)}, length: {log_hex(reg_count)}"
         )
-        return await self.mqtt_client.read_registers(reg_start, reg_count)
+        return await self.client.read_registers(
+            reg_start, reg_count, register_chunks=reg_chunks
+        )
+        # return await self.client.read_registers(reg_start, reg_count)
 
 
 class SajH1MqttInverterDataCoordinator(SajH1MqttDataCoordinator):
@@ -120,7 +124,7 @@ class SajH1MqttInverterDataCoordinator(SajH1MqttDataCoordinator):
         LOGGER.debug(
             f"Fetching inverter data at {log_hex(reg_start)}, length: {log_hex(reg_count)}"
         )
-        return await self.mqtt_client.read_registers(reg_start, reg_count)
+        return await self.client.read_registers(reg_start, reg_count)
 
 
 class SajH1MqttBatteryDataCoordinator(SajH1MqttDataCoordinator):
@@ -133,7 +137,7 @@ class SajH1MqttBatteryDataCoordinator(SajH1MqttDataCoordinator):
         LOGGER.debug(
             f"Fetching battery data at {log_hex(reg_start)}, length: {log_hex(reg_count)}"
         )
-        return await self.mqtt_client.read_registers(reg_start, reg_count)
+        return await self.client.read_registers(reg_start, reg_count)
 
 
 class SajH1MqttBatteryControllerDataCoordinator(SajH1MqttDataCoordinator):
@@ -146,7 +150,7 @@ class SajH1MqttBatteryControllerDataCoordinator(SajH1MqttDataCoordinator):
         LOGGER.debug(
             f"Fetching battery controller data at {log_hex(reg_start)}, length: {log_hex(reg_count)}"
         )
-        return await self.mqtt_client.read_registers(reg_start, reg_count)
+        return await self.client.read_registers(reg_start, reg_count)
 
 
 class SajH1MqttConfigDataCoordinator(SajH1MqttDataCoordinator):
@@ -159,4 +163,4 @@ class SajH1MqttConfigDataCoordinator(SajH1MqttDataCoordinator):
         LOGGER.debug(
             f"Fetching config data at {log_hex(reg_start)}, length: {log_hex(reg_count)}"
         )
-        return await self.mqtt_client.read_registers(reg_start, reg_count)
+        return await self.client.read_registers(reg_start, reg_count)

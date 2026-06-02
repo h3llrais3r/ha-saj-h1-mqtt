@@ -4,10 +4,24 @@
       "user": {
         "data": {
           "serial_number": "Serial number",
+          "protocol": "Protocol",
           "scan_interval_realtime_data": "Realtime data scan interval",
           "enable_serial_number_prefix": "Include serial number in sensor names"
         },
-        "title": "SAJ H1 solar inverter"
+        "title": "SAJ H1 solar inverter config"
+      },
+      "mqtt_config": {
+        "data": {
+          "enable_mqtt_debug": "Enable MQTT debugging"
+        },
+        "title": "SAJ H1 solar inverter MQTT config"
+      },
+      "modbus_config": {
+        "data": {
+          "modbus_host": "Modbus host",
+          "modbus_port": "Modbus port"
+        },
+        "title": "SAJ H1 solar inverter modbus config"
       }
     },
     "abort": {
@@ -27,16 +41,29 @@
     "step": {
       "init": {
         "data": {
+          "protocol": "Protocol",
           "scan_interval_realtime_data": "Realtime data scan interval",
           "scan_interval_inverter_data": "Inverter data can interval (0=disabled)",
           "scan_interval_battery_data": "Battery data scan interval (0=disabled)",
           "scan_interval_battery_controller_data": "Battery controller data scan interval (0=disabled)",
           "scan_interval_config_data": "Config data scan interval (0=disabled)",
           "enable_serial_number_prefix": "Include serial number in sensor names",
-          "enable_accurate_realtime_power_data": "Enable accurate realtime power data",
-          "enable_mqtt_debug": "Enable MQTT debugging"
+          "enable_accurate_realtime_power_data": "Enable accurate realtime power data"
         },
         "title": "SAJ H1 solar inverter options"
+      },
+      "mqtt_options": {
+        "data": {
+          "enable_mqtt_debug": "Enable MQTT debugging"
+        },
+        "title": "SAJ H1 solar inverter MQTT options"
+      },
+      "modbus_options": {
+        "data": {
+          "modbus_host": "Modbus host",
+          "modbus_port": "Modbus port"
+        },
+        "title": "SAJ H1 solar inverter modbus options"
       }
     }
   }

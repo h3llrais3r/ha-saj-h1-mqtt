@@ -41,7 +41,7 @@ async def read_register(call: ServiceCall) -> core.ServiceResponse:
     """Read a single register from the inverter."""
     LOGGER.debug("Reading register")
     entry = _get_config_entry(call.hass, call.data.get(ATTR_CONFIG_ENTRY))
-    mqtt_client = entry.runtime_data.mqtt_client
+    client = entry.runtime_data.client
     attr_register: str = call.data.get(ATTR_REGISTER)
     attr_register_format: str | None = call.data.get(ATTR_REGISTER_FORMAT)
 
@@ -60,7 +60,7 @@ async def read_register(call: ServiceCall) -> core.ServiceResponse:
         raise ServiceValidationError("Invalid register format")
 
     # Read 1 register
-    content = await mqtt_client.read_registers(register_start, 1)
+    content = await client.read_registers(register_start, 1)
     if content is None:
         LOGGER.error("Failed to read register")
         raise ServiceValidationError("Failed to read register")
@@ -76,7 +76,7 @@ async def read_registers(call: ServiceCall) -> core.ServiceResponse:
     """Read multiple registers from the inverter."""
     LOGGER.debug("Reading registers")
     entry = _get_config_entry(call.hass, call.data.get(ATTR_CONFIG_ENTRY))
-    mqtt_client = entry.runtime_data.mqtt_client
+    client = entry.runtime_data.client
     attr_register: str = call.data.get(ATTR_REGISTER)
     attr_register_size: str = call.data.get(ATTR_REGISTER_SIZE)
     attr_register_format: str | None = call.data.get(ATTR_REGISTER_FORMAT)
@@ -104,7 +104,7 @@ async def read_registers(call: ServiceCall) -> core.ServiceResponse:
         raise ServiceValidationError("Invalid register format")
 
     # Read registers
-    content = await mqtt_client.read_registers(register_start, register_size)
+    content = await client.read_registers(register_start, register_size)
     if content is None:
         LOGGER.error("Failed to read registers")
         raise ServiceValidationError("Failed to read registers")
@@ -120,7 +120,7 @@ async def write_register(call: ServiceCall) -> None:
     """Write a single register to the inverter."""
     LOGGER.debug("Writing register")
     entry = _get_config_entry(call.hass, call.data.get(ATTR_CONFIG_ENTRY))
-    mqtt_client = entry.runtime_data.mqtt_client
+    client = entry.runtime_data.client
     attr_register: str = call.data.get(ATTR_REGISTER)
     attr_register_value: str = call.data.get(ATTR_REGISTER_VALUE)
 
@@ -143,7 +143,7 @@ async def write_register(call: ServiceCall) -> None:
         raise ServiceValidationError("Invalid register value") from e
 
     # Write register
-    await mqtt_client.write_register(register, value)
+    await client.write_register(register, value)
 
 
 async def refresh_inverter_data(call: ServiceCall) -> None:
@@ -190,10 +190,10 @@ async def sync_inverter_time(call: ServiceCall) -> core.ServiceResponse:
     """Sync inverter time with local time."""
     LOGGER.debug("Syncing inverter time")
     entry = _get_config_entry(call.hass, call.data.get(ATTR_CONFIG_ENTRY))
-    mqtt_client = entry.runtime_data.mqtt_client
+    client = entry.runtime_data.client
 
     # Get current inverter time
-    content = await mqtt_client.read_registers(MODBUS_REG_INVERTER_TIME_READ, 0x4)
+    content = await client.read_registers(MODBUS_REG_INVERTER_TIME_READ, 0x4)
     if content is None:
         LOGGER.error("Failed to read inverter time")
         raise ServiceValidationError("Failed to read inverter time")
@@ -215,7 +215,7 @@ async def sync_inverter_time(call: ServiceCall) -> core.ServiceResponse:
     hour_minute = local_time.hour << 8 | local_time.minute
     second_zz = local_time.second << 8  # zz = 00
     # second_weekday = local_time.second << 8 | local_time.isoweekday()
-    await mqtt_client.write_registers(
+    await client.write_registers(
         MODBUS_REG_INVERTER_TIME_WRITE,
         [year, month_day, hour_minute, second_zz],
     )

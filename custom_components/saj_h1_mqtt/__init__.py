@@ -10,18 +10,24 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.typing import ConfigType
 
-from .client import SajH1MqttClient
+from .client import SajH1Client, SajH1ModbusClient, SajH1MqttClient
 from .const import (
     CONF_ENABLE_MQTT_DEBUG,
+    CONF_MODBUS_HOST,
+    CONF_MODBUS_PORT,
+    CONF_PROTOCOL,
     CONF_SCAN_INTERVAL_BATTERY_CONTROLLER_DATA,
     CONF_SCAN_INTERVAL_BATTERY_DATA,
     CONF_SCAN_INTERVAL_CONFIG_DATA,
     CONF_SCAN_INTERVAL_INVERTER_DATA,
     CONF_SCAN_INTERVAL_REALTIME_DATA,
     CONF_SERIAL_NUMBER,
+    DEFAULT_MODBUS_PORT,
     DOMAIN,
     LOGGER,
     MQTT_READY,
+    PROTOCOL_MODBUS,
+    PROTOCOL_MQTT,
 )
 from .coordinator import (
     SajH1MqttBatteryControllerDataCoordinator,
@@ -54,13 +60,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
 
     # Create hass data for our domain (to keep track of some data)
     if DOMAIN not in hass.data:
-        hass.data.setdefault(DOMAIN, {MQTT_READY: False})
+        # When hass is not yet running (startup), we consider mqtt not ready (no birth message yet)
+        # When hass is already running (reload entry), we consider mqtt ready (birth message received in the past)
+        mqtt_ready = hass.is_running
+        hass.data.setdefault(DOMAIN, {MQTT_READY: mqtt_ready})
 
     # Get config data
     serial_number: str = entry.data[CONF_SERIAL_NUMBER]
+    protocol: str = entry.options[CONF_PROTOCOL]
     scan_interval_realtime_data = timedelta(
         seconds=entry.options[CONF_SCAN_INTERVAL_REALTIME_DATA]
     )
+    # Get protocol config data
+    debug_mqtt: bool = entry.options.get(CONF_ENABLE_MQTT_DEBUG, False)
+    host: str = entry.options.get(CONF_MODBUS_HOST, None)
+    port: int = entry.options.get(CONF_MODBUS_PORT, DEFAULT_MODBUS_PORT)
     # Get optional data
     interval = entry.options.get(CONF_SCAN_INTERVAL_INVERTER_DATA, None)
     scan_interval_inverter_data = timedelta(seconds=interval) if interval else None
@@ -72,9 +86,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
     )
     interval = entry.options.get(CONF_SCAN_INTERVAL_CONFIG_DATA, None)
     scan_interval_config_data = timedelta(seconds=interval) if interval else None
-    debug_mqtt: bool = entry.options.get(CONF_ENABLE_MQTT_DEBUG, False)
 
     LOGGER.info(f"Setting up SAJ H1 inverter with serial: {serial_number}")
+    LOGGER.info(f"Using protocol: {protocol}")
     LOGGER.info(f"Scan interval realtime data: {scan_interval_realtime_data}")
     LOGGER.info(
         f"Scan interval inverter data: {scan_interval_inverter_data or 'disabled'}"
@@ -87,30 +101,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
     )
     LOGGER.info(f"Scan interval config data: {scan_interval_config_data or 'disabled'}")
 
-    # Setup mqtt client
-    mqtt_client = SajH1MqttClient(hass, serial_number, debug_mqtt)
-    await mqtt_client.connect()
+    # Setup client (default to mqtt)
+    client: SajH1Client
+    if protocol == PROTOCOL_MODBUS:
+        client = SajH1ModbusClient(hass, host, port)
+    else:
+        client = SajH1MqttClient(hass, serial_number, debug_mqtt)
+    await client.connect()
 
     # Setup coordinators
     LOGGER.debug("Setting up coordinators")
 
     # Realtime data coordinator
     coordinator_realtime_data = SajH1MqttRealtimeDataCoordinator(
-        hass, entry, mqtt_client, scan_interval_realtime_data, "realtime_data"
+        hass, entry, client, scan_interval_realtime_data, "realtime_data"
     )
 
     # Inverter data coordinators
     coordinator_inverter_data: SajH1MqttInverterDataCoordinator | None = None
     if scan_interval_inverter_data:
         coordinator_inverter_data = SajH1MqttInverterDataCoordinator(
-            hass, entry, mqtt_client, scan_interval_inverter_data, "inverter_data"
+            hass, entry, client, scan_interval_inverter_data, "inverter_data"
         )
 
     # Battery data coordinator
     coordinator_battery_data: SajH1MqttBatteryDataCoordinator | None = None
     if scan_interval_battery_data:
         coordinator_battery_data = SajH1MqttBatteryDataCoordinator(
-            hass, entry, mqtt_client, scan_interval_battery_data, "battery_data"
+            hass, entry, client, scan_interval_battery_data, "battery_data"
         )
 
     # Battery controller data coordinators
@@ -121,7 +139,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
         coordinator_battery_controller_data = SajH1MqttBatteryControllerDataCoordinator(
             hass,
             entry,
-            mqtt_client,
+            client,
             scan_interval_battery_controller_data,
             "battery_controller_data",
         )
@@ -130,12 +148,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
     coordinator_config_data: SajH1MqttConfigDataCoordinator | None = None
     if scan_interval_config_data:
         coordinator_config_data = SajH1MqttConfigDataCoordinator(
-            hass, entry, mqtt_client, scan_interval_config_data, "config_data"
+            hass, entry, client, scan_interval_config_data, "config_data"
         )
 
     # Entry runtime data
     entry.runtime_data = SajH1MqttData(
-        mqtt_client=mqtt_client,
+        client=client,
         coordinator_realtime_data=coordinator_realtime_data,
         coordinator_inverter_data=coordinator_inverter_data,
         coordinator_battery_data=coordinator_battery_data,
@@ -144,9 +162,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
     )
 
     # Trigger first refresh
+    # If protocol is modbus, refresh immediately
     # If mqtt ready (or birth message disabled), refresh immediately (case when you reload the integration)
     # If mqtt not ready, wait for mqtt birth message before refresh (case when starting up homeassistant)
-    if hass.data[DOMAIN][MQTT_READY] or not _get_birth_message_topic(hass):
+    if (
+        protocol == PROTOCOL_MODBUS
+        or hass.data[DOMAIN][MQTT_READY]
+        or not _get_birth_message_topic(hass)
+    ):
         await entry.runtime_data.async_first_refresh()
     else:
         await async_first_refresh_on_mqtt_birth_message(hass, entry)
@@ -160,6 +183,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
     return True
 
 
+async def async_migrate_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) -> bool:
+    """Migrate old config entries."""
+
+    if entry.version > 2:
+        # This means the user has downgraded from a future version
+        return False
+
+    if entry.version == 1:
+        # Update from version 1 to version 2 (set default protocol to mqtt)
+        new_options = {**entry.options}
+        new_options[CONF_PROTOCOL] = PROTOCOL_MQTT
+        hass.config_entries.async_update_entry(entry, options=new_options, version=2)
+
+    return True
+
+
 async def async_reload_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) -> None:
     """Reload a config entry when it changed."""
     await hass.config_entries.async_reload(entry.entry_id)
@@ -169,8 +208,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) -
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        # Disconnect the mqtt client
-        await entry.runtime_data.mqtt_client.disconnect()
+        # Disconnect the client
+        await entry.runtime_data.client.disconnect()
 
     return unload_ok
 

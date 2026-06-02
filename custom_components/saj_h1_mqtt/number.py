@@ -169,7 +169,7 @@ class SajH1MqttNumberEntity(SajH1MqttEntity, NumberEntity):
             raise ValueError(f"Invalid value: {value}") from err
 
         # Write register and refresh coordinator
-        await self.coordinator.mqtt_client.write_register(
+        await self.coordinator.client.write_register(
             self._modbus_register, modbus_value
         )
         await self.coordinator.async_request_refresh()

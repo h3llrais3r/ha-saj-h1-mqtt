@@ -188,9 +188,11 @@ REALTIME_PV_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
     modbus_register_offset=0x14A,
     modbus_register_data_type=">H",
     modbus_register_scale=1.0,
-    value_fn=lambda x: None
-    if x is None
-    else (PVState.PRODUCING.value if float(x) > 0 else PVState.STANDBY.value),
+    value_fn=lambda x: (
+        None
+        if x is None
+        else (PVState.PRODUCING.value if float(x) > 0 else PVState.STANDBY.value)
+    ),
 )
 REALTIME_BATTERY_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
     key="realtime_battery_state",
@@ -201,13 +203,17 @@ REALTIME_BATTERY_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
     modbus_register_offset=0x14C,
     modbus_register_data_type=">h",
     modbus_register_scale=1.0,
-    value_fn=lambda x: None
-    if x is None
-    else (
-        BatteryState.DISCHARGING.value
-        if float(x) > 0
+    value_fn=lambda x: (
+        None
+        if x is None
         else (
-            BatteryState.CHARGING.value if float(x) < 0 else BatteryState.STANDBY.value
+            BatteryState.DISCHARGING.value
+            if float(x) > 0
+            else (
+                BatteryState.CHARGING.value
+                if float(x) < 0
+                else BatteryState.STANDBY.value
+            )
         )
     ),
 )
@@ -220,12 +226,16 @@ REALTIME_GRID_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
     modbus_register_offset=0x15A,  # use summary_smart_meter_load_power_2 data
     modbus_register_data_type=">h",
     modbus_register_scale=-1.0,  # use inverted scale as value is inverted
-    value_fn=lambda x: None
-    if x is None
-    else (
-        GridState.IMPORTING.value
-        if float(x) > 0
-        else (GridState.EXPORTING.value if float(x) < 0 else GridState.STANDBY.value)
+    value_fn=lambda x: (
+        None
+        if x is None
+        else (
+            GridState.IMPORTING.value
+            if float(x) > 0
+            else (
+                GridState.EXPORTING.value if float(x) < 0 else GridState.STANDBY.value
+            )
+        )
     ),
 )
 REALTIME_SYSTEM_LOAD_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription(
@@ -237,9 +247,13 @@ REALTIME_SYSTEM_LOAD_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescription
     modbus_register_offset=0x140,
     modbus_register_data_type=">H",
     modbus_register_scale=1.0,
-    value_fn=lambda x: None
-    if x is None
-    else (SystemLoadState.CONSUMING.value if float(x) > 0 else GridState.STANDBY.value),
+    value_fn=lambda x: (
+        None
+        if x is None
+        else (
+            SystemLoadState.CONSUMING.value if float(x) > 0 else GridState.STANDBY.value
+        )
+    ),
 )
 
 # Accurate realtime sensors (only used when enabled in config, replaces the original 'realtime_grid_power' and 'realtime_grid_state' sensors)
@@ -281,12 +295,16 @@ ACCURATE_REALTIME_GRID_STATE_SENSOR_DESCRIPTION = SajH1MqttSensorEntityDescripti
     modbus_register_offset=0x142,  # use summary_smart_meter_load_power_1 data
     modbus_register_data_type=">h",
     modbus_register_scale=1.0,
-    value_fn=lambda x: None
-    if x is None
-    else (
-        GridState.IMPORTING.value
-        if float(x) > 0
-        else (GridState.EXPORTING.value if float(x) < 0 else GridState.STANDBY.value)
+    value_fn=lambda x: (
+        None
+        if x is None
+        else (
+            GridState.IMPORTING.value
+            if float(x) > 0
+            else (
+                GridState.EXPORTING.value if float(x) < 0 else GridState.STANDBY.value
+            )
+        )
     ),
 )
 

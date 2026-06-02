@@ -101,7 +101,7 @@ class SajH1MqttSelectEntity(SajH1MqttEntity, SelectEntity, ABC):
             raise ValueError(f"Invalid option: {option}") from err
 
         # Write modbus register and refresh coordinator
-        await self.coordinator.mqtt_client.write_register(
+        await self.coordinator.client.write_register(
             self._modbus_register, modbus_value
         )
         await self.coordinator.async_request_refresh()

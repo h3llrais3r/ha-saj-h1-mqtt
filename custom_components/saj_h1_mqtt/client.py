@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 import asyncio
 from collections import OrderedDict
 import contextlib
 from datetime import datetime
 from random import random
 from struct import pack, unpack_from
+
+from pymodbus.client import AsyncModbusTcpClient
+from pymodbus.exceptions import ModbusException
 
 from homeassistant.components import mqtt
 from homeassistant.components.mqtt import ReceiveMessage
@@ -18,9 +22,12 @@ from .const import (
     BRAND,
     LOGGER,
     MODBUS_DEVICE_ADDRESS,
-    MODBUS_MAX_REGISTERS_PER_QUERY,
+    MODBUS_MAX_REGISTERS,
     MODBUS_READ_ERROR,
     MODBUS_READ_REQUEST,
+    MODBUS_RETRY_COUNT,
+    MODBUS_RETRY_DELAY,
+    MODBUS_TIMEOUT,
     MODBUS_WRITE_ERROR,
     MODBUS_WRITE_MULTIPLE_ERROR,
     MODBUS_WRITE_MULTIPLE_REQUEST,
@@ -36,16 +43,54 @@ from .const import (
 from .utils import computeCRC, debug, log_hex
 
 
-class SajH1MqttClient:
+class SajH1Client(ABC):
+    """Base SAJ H1 client instance."""
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        """Set up the SajH1Client class."""
+        super().__init__()
+
+        self.hass = hass
+
+    @abstractmethod
+    async def connect(self) -> None:
+        """Connect to the client."""
+
+    @abstractmethod
+    async def disconnect(self) -> None:
+        """Disconnect from the client."""
+
+    @abstractmethod
+    async def read_registers(
+        self,
+        register_start: int,
+        register_count: int,
+        register_chunks: list[int] | None = None,
+    ) -> bytearray | None:
+        """Read 1 or more registers from the inverter."""
+
+    @abstractmethod
+    async def write_register(self, register: int, value: int) -> int | None:
+        """Write a register value to the inverter."""
+
+    @abstractmethod
+    async def write_registers(
+        self,
+        register_start: int,
+        values: list[int],
+    ) -> int | None:
+        """Write multiple register values to the inverter."""
+
+
+class SajH1MqttClient(SajH1Client):
     """SAJ H1 MQTT client instance."""
 
     def __init__(
         self, hass: HomeAssistant, serial_number: str, debug_mqtt: bool
     ) -> None:
         """Set up the SajH1MqttClient class."""
-        super().__init__()
+        super().__init__(hass)
 
-        self.hass = hass
         self.mqtt = mqtt
         self.serial_number = serial_number
         self.debug_mqtt = debug_mqtt
@@ -77,13 +122,15 @@ class SajH1MqttClient:
         self,
         register_start: int,
         register_count: int,
+        register_chunks: list[int] | None = None,
         timeout: int = MQTT_DATA_TRANSMISSION_TIMEOUT,
     ) -> bytearray | None:
         """Read 1 or more registers from the inverter.
 
         We can read up to 123 registers with a single request.
-        Because a modbus response cannot exceed 256 bytes. (123 registers = 246 bytes, plus some overhead)
+        Because a modbus mqtt response cannot exceed 256 bytes. (123 registers = 246 bytes, plus some overhead)
         This method hides all the package splitting and returns the raw bytes if successful.
+        You can also specify the register_chunks, so you can group the registers that belong together.
         It returns None in case data could not be retrieved in time.
         """
         debug(
@@ -92,8 +139,15 @@ class SajH1MqttClient:
 
         # Create the MQTT data_transmission packets to send to the inverter
         packets: list[tuple[bytes, int]] = []
+        chunk_idx = 0
         while register_count > 0:
-            reg_count = min(register_count, MODBUS_MAX_REGISTERS_PER_QUERY)
+            if register_chunks:
+                # If register_chunks are provided, we need to split the requests according to the chunks
+                reg_count = register_chunks[chunk_idx]
+                chunk_idx += 1
+            else:
+                # If no register_chunks are provided, split in chunks of max MODBUS_MAX_REGISTERS registers
+                reg_count = min(register_count, MODBUS_MAX_REGISTERS)
             packet = self._create_mqtt_read_packet(register_start, reg_count)
             packets.append(packet)
             register_start += reg_count
@@ -574,3 +628,151 @@ class SajH1MqttClient:
         debug(f"Final packet: {':'.join(f'{b:02x}' for b in packet)}", self.debug_mqtt)
 
         return packet, req_id
+
+
+class SajH1ModbusClient(SajH1Client):
+    """SAJ H1 modbus client."""
+
+    def __init__(self, hass: HomeAssistant, host: str, port: int) -> None:
+        """Set up the SajH1ModbusClient class."""
+        super().__init__(hass)
+
+        self.host = host
+        self.port = port
+        self._client = None
+        self._lock = asyncio.Lock()
+
+    async def connect(self) -> None:
+        """Connect to modbus."""
+        self._client = AsyncModbusTcpClient(
+            host=self.host, port=self.port, timeout=MODBUS_TIMEOUT
+        )
+        await self._client.connect()
+        debug(f"Connected to modbus at {self.host}:{self.port}")
+
+    async def disconnect(self) -> None:
+        """Disconnect from modbus."""
+        async with self._lock:
+            if self._client:
+                self._client.close()
+                self._client = None
+                debug(f"Disconnected from modbus at {self.host}:{self.port}")
+
+    async def read_registers(
+        self,
+        register_start: int,
+        register_count: int,
+        register_chunks: list[int] | None = None,
+    ) -> bytearray | None:
+        """Read 1 or more registers from the inverter.
+
+        We can read up to 125 registers with a single request.
+        Because a modbus tcp response cannot exceed 260 bytes. (125 registers = 250 bytes, plus some overhead)
+        This method hides all the package splitting and returns the raw bytes if successful.
+        You can also specify the register_chunks, so you can group the registers that belong together.
+        It returns None in case data could not be retrieved.
+        """
+        debug(
+            f"Reading registers at {log_hex(register_start)}, length: {log_hex(register_count)}"
+        )
+
+        async with self._lock:
+            data = bytearray()
+            chunk_idx = 0
+            while register_count > 0:
+                if register_chunks:
+                    # If register_chunks are provided, we need to split the requests according to the chunks
+                    reg_count = register_chunks[chunk_idx]
+                    chunk_idx += 1
+                else:
+                    # If no register_chunks are provided, split in chunks of max MODBUS_MAX_REGISTERS registers
+                    reg_count = min(register_count, MODBUS_MAX_REGISTERS)
+
+                for attempt in range(MODBUS_RETRY_COUNT):
+                    try:
+                        response = await self._client.read_holding_registers(
+                            address=register_start,
+                            count=reg_count,
+                            device_id=MODBUS_DEVICE_ADDRESS,
+                        )
+                        if not response.isError():
+                            break
+
+                        LOGGER.debug(
+                            f"Modbus error: {response.exception_code}, attempt {attempt + 1}/{MODBUS_RETRY_COUNT}"
+                        )
+
+                    except ModbusException as ex:
+                        LOGGER.debug(
+                            f"Modbus exception: {ex}, attempt {attempt + 1}/{MODBUS_RETRY_COUNT}"
+                        )
+
+                    await asyncio.sleep(MODBUS_RETRY_DELAY)
+                else:
+                    LOGGER.error(
+                        f"Failed to read registers at {log_hex(register_start)}"
+                    )
+                    data = None
+
+                for value in response.registers:
+                    data += int.to_bytes((value & 0xFF00) >> 8)
+                    data += int.to_bytes(value & 0xFF)
+
+                register_start += reg_count
+                register_count -= reg_count
+
+            return data
+
+    async def write_register(self, register: int, value: int) -> int | None:
+        """Write a register value to the inverter."""
+        debug(f"Writing register at {log_hex(register)}, value: {log_hex(value)}")
+
+        async with self._lock:
+            data: int | None = None
+            try:
+                response = await self._client.write_register(
+                    address=register, value=value, device_id=MODBUS_DEVICE_ADDRESS
+                )
+                if response.isError():
+                    LOGGER.error(
+                        f"Failed to write register at {log_hex(register)}: modbus error {response.exception_code}"
+                    )
+                    data = None
+                data = response.registers[0]  # the value written to the register
+
+            except ModbusException as ex:
+                LOGGER.error(f"Modbus exception: {ex}")
+                data = None
+
+            return data
+
+    async def write_registers(
+        self, register_start: int, values: list[int]
+    ) -> int | None:
+        """Write multiple register values to the inverter."""
+        count = len(values)
+        hex_values = ", ".join(log_hex(v) for v in values)
+        debug(
+            f"Writing register(s) at {log_hex(register_start)}, length: {log_hex(count)}, values: {hex_values}"
+        )
+
+        async with self._lock:
+            data: int | None = None
+            try:
+                response = await self._client.write_registers(
+                    address=register_start,
+                    values=values,
+                    device_id=MODBUS_DEVICE_ADDRESS,
+                )
+                if response.isError():
+                    LOGGER.error(
+                        f"Failed to write registers at {log_hex(register_start)}: modbus error {response.exception_code}"
+                    )
+                    data = None
+                data = response.count  # number of registers written
+
+            except ModbusException as ex:
+                LOGGER.error(f"Modbus exception: {ex}")
+                data = None
+
+            return data
