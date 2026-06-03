@@ -633,12 +633,15 @@ class SajH1MqttClient(SajH1Client):
 class SajH1ModbusClient(SajH1Client):
     """SAJ H1 modbus client."""
 
-    def __init__(self, hass: HomeAssistant, host: str, port: int) -> None:
+    def __init__(
+        self, hass: HomeAssistant, host: str, port: int, debug_modbus: bool
+    ) -> None:
         """Set up the SajH1ModbusClient class."""
         super().__init__(hass)
 
         self.host = host
         self.port = port
+        self.debug_modbus = debug_modbus
         self._client = None
         self._lock = asyncio.Lock()
 
@@ -688,6 +691,7 @@ class SajH1ModbusClient(SajH1Client):
                     # If no register_chunks are provided, split in chunks of max MODBUS_MAX_REGISTERS registers
                     reg_count = min(register_count, MODBUS_MAX_REGISTERS)
 
+                # Read the registers, with retries in case of modbus errors
                 for attempt in range(MODBUS_RETRY_COUNT):
                     try:
                         response = await self._client.read_holding_registers(
@@ -695,16 +699,19 @@ class SajH1ModbusClient(SajH1Client):
                             count=reg_count,
                             device_id=MODBUS_DEVICE_ADDRESS,
                         )
+                        debug(f"Modbus response: {response}", self.debug_modbus)
                         if not response.isError():
                             break
 
-                        LOGGER.debug(
-                            f"Modbus error: {response.exception_code}, attempt {attempt + 1}/{MODBUS_RETRY_COUNT}"
+                        debug(
+                            f"Modbus error: {response.exception_code}, attempt {attempt + 1}/{MODBUS_RETRY_COUNT}",
+                            self.debug_modbus,
                         )
 
                     except ModbusException as ex:
-                        LOGGER.debug(
-                            f"Modbus exception: {ex}, attempt {attempt + 1}/{MODBUS_RETRY_COUNT}"
+                        debug(
+                            f"Modbus exception: {ex}, attempt {attempt + 1}/{MODBUS_RETRY_COUNT}",
+                            self.debug_modbus,
                         )
 
                     await asyncio.sleep(MODBUS_RETRY_DELAY)
@@ -713,11 +720,14 @@ class SajH1ModbusClient(SajH1Client):
                         f"Failed to read registers at {log_hex(register_start)}"
                     )
                     data = None
+                    break  # in case of failure, break the while loop and return None
 
+                # Register chunk read, append the values to the data bytearray
                 for value in response.registers:
                     data += int.to_bytes((value & 0xFF00) >> 8)
                     data += int.to_bytes(value & 0xFF)
 
+                # Update the register_start and register_count for the next chunk
                 register_start += reg_count
                 register_count -= reg_count
 
@@ -733,12 +743,14 @@ class SajH1ModbusClient(SajH1Client):
                 response = await self._client.write_register(
                     address=register, value=value, device_id=MODBUS_DEVICE_ADDRESS
                 )
+                debug(f"Modbus response: {response}", self.debug_modbus)
                 if response.isError():
                     LOGGER.error(
                         f"Failed to write register at {log_hex(register)}: modbus error {response.exception_code}"
                     )
                     data = None
-                data = response.registers[0]  # the value written to the register
+                else:
+                    data = response.registers[0]  # the value written to the register
 
             except ModbusException as ex:
                 LOGGER.error(f"Modbus exception: {ex}")
@@ -764,12 +776,14 @@ class SajH1ModbusClient(SajH1Client):
                     values=values,
                     device_id=MODBUS_DEVICE_ADDRESS,
                 )
+                debug(f"Modbus response: {response}", self.debug_modbus)
                 if response.isError():
                     LOGGER.error(
                         f"Failed to write registers at {log_hex(register_start)}: modbus error {response.exception_code}"
                     )
                     data = None
-                data = response.count  # number of registers written
+                else:
+                    data = response.count  # number of registers written
 
             except ModbusException as ex:
                 LOGGER.error(f"Modbus exception: {ex}")

@@ -19,7 +19,8 @@
       "modbus_config": {
         "data": {
           "modbus_host": "Modbus host",
-          "modbus_port": "Modbus port"
+          "modbus_port": "Modbus port",
+          "enable_modbus_debug": "Enable modbus debugging"
         },
         "title": "SAJ H1 solar inverter modbus config"
       }
@@ -43,7 +44,7 @@
         "data": {
           "protocol": "Protocol",
           "scan_interval_realtime_data": "Realtime data scan interval",
-          "scan_interval_inverter_data": "Inverter data can interval (0=disabled)",
+          "scan_interval_inverter_data": "Inverter data scan interval (0=disabled)",
           "scan_interval_battery_data": "Battery data scan interval (0=disabled)",
           "scan_interval_battery_controller_data": "Battery controller data scan interval (0=disabled)",
           "scan_interval_config_data": "Config data scan interval (0=disabled)",
@@ -61,7 +62,8 @@
       "modbus_options": {
         "data": {
           "modbus_host": "Modbus host",
-          "modbus_port": "Modbus port"
+          "modbus_port": "Modbus port",
+          "enable_modbus_debug": "Enable modbus debugging"
         },
         "title": "SAJ H1 solar inverter modbus options"
       }

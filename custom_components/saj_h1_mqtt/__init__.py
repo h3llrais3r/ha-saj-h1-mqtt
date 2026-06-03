@@ -12,6 +12,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from .client import SajH1Client, SajH1ModbusClient, SajH1MqttClient
 from .const import (
+    CONF_ENABLE_MODBUS_DEBUG,
     CONF_ENABLE_MQTT_DEBUG,
     CONF_MODBUS_HOST,
     CONF_MODBUS_PORT,
@@ -72,9 +73,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
         seconds=entry.options[CONF_SCAN_INTERVAL_REALTIME_DATA]
     )
     # Get protocol config data
-    debug_mqtt: bool = entry.options.get(CONF_ENABLE_MQTT_DEBUG, False)
-    host: str = entry.options.get(CONF_MODBUS_HOST, None)
-    port: int = entry.options.get(CONF_MODBUS_PORT, DEFAULT_MODBUS_PORT)
+    modbus_host: str = entry.options.get(CONF_MODBUS_HOST, None)
+    modbus_port: int = entry.options.get(CONF_MODBUS_PORT, DEFAULT_MODBUS_PORT)
+    modbus_debug: bool = entry.options.get(CONF_ENABLE_MODBUS_DEBUG, False)
+    mqtt_debug: bool = entry.options.get(CONF_ENABLE_MQTT_DEBUG, False)
     # Get optional data
     interval = entry.options.get(CONF_SCAN_INTERVAL_INVERTER_DATA, None)
     scan_interval_inverter_data = timedelta(seconds=interval) if interval else None
@@ -104,9 +106,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
     # Setup client (default to mqtt)
     client: SajH1Client
     if protocol == PROTOCOL_MODBUS:
-        client = SajH1ModbusClient(hass, host, port)
+        client = SajH1ModbusClient(hass, modbus_host, modbus_port, modbus_debug)
     else:
-        client = SajH1MqttClient(hass, serial_number, debug_mqtt)
+        client = SajH1MqttClient(hass, serial_number, mqtt_debug)
     await client.connect()
 
     # Setup coordinators

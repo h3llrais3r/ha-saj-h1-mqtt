@@ -28,6 +28,7 @@ from homeassistant.helpers.selector import (
 
 from .const import (
     CONF_ENABLE_ACCURATE_REALTIME_POWER_DATA,
+    CONF_ENABLE_MODBUS_DEBUG,
     CONF_ENABLE_MQTT_DEBUG,
     CONF_ENABLE_SERIAL_NUMBER_PREFIX,
     CONF_MODBUS_HOST,
@@ -95,6 +96,10 @@ MODBUS_CONFIG_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_MODBUS_HOST): cv.string,
         vol.Required(CONF_MODBUS_PORT, default=DEFAULT_MODBUS_PORT): cv.positive_int,
+        vol.Optional(
+            CONF_ENABLE_MODBUS_DEBUG,
+            default=False,
+        ): BooleanSelector(),
     }
 )
 
@@ -231,6 +236,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                     CONF_PROTOCOL: self._protocol,
                     CONF_SCAN_INTERVAL_REALTIME_DATA: self._scan_interval,
                     CONF_ENABLE_SERIAL_NUMBER_PREFIX: self._enable_prefix,
+                    CONF_ENABLE_MQTT_DEBUG: user_input[CONF_ENABLE_MQTT_DEBUG],
                 },
             )
 
@@ -255,6 +261,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                     CONF_ENABLE_SERIAL_NUMBER_PREFIX: self._enable_prefix,
                     CONF_MODBUS_HOST: user_input[CONF_MODBUS_HOST],
                     CONF_MODBUS_PORT: user_input[CONF_MODBUS_PORT],
+                    CONF_ENABLE_MODBUS_DEBUG: user_input[CONF_ENABLE_MODBUS_DEBUG],
                 },
             )
 
