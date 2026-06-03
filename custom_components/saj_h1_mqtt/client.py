@@ -693,7 +693,7 @@ class SajH1ModbusClient(SajH1Client):
 
                 # Read the registers, with retries in case of modbus errors
                 debug(
-                    f"Reading register chunk {chunk_idx} at {log_hex(register_start)}, length: {log_hex(register_count)}"
+                    f"Reading register chunk {chunk_idx} at {log_hex(register_start)}, length: {log_hex(reg_count)}"
                 )
                 for attempt in range(MODBUS_RETRY_COUNT):
                     try:
