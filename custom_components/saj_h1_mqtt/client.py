@@ -686,12 +686,15 @@ class SajH1ModbusClient(SajH1Client):
                 if register_chunks:
                     # If register_chunks are provided, we need to split the requests according to the chunks
                     reg_count = register_chunks[chunk_idx]
-                    chunk_idx += 1
                 else:
                     # If no register_chunks are provided, split in chunks of max MODBUS_MAX_REGISTERS registers
                     reg_count = min(register_count, MODBUS_MAX_REGISTERS)
+                chunk_idx += 1
 
                 # Read the registers, with retries in case of modbus errors
+                debug(
+                    f"Reading register chunk {chunk_idx} at {log_hex(register_start)}, length: {log_hex(register_count)}"
+                )
                 for attempt in range(MODBUS_RETRY_COUNT):
                     try:
                         response = await self._client.read_holding_registers(
@@ -717,15 +720,14 @@ class SajH1ModbusClient(SajH1Client):
                     await asyncio.sleep(MODBUS_RETRY_DELAY)
                 else:
                     LOGGER.error(
-                        f"Failed to read registers at {log_hex(register_start)}"
+                        f"Failed to read registers at {log_hex(register_start)}, length: {log_hex(reg_count)}"
                     )
                     data = None
                     break  # in case of failure, break the while loop and return None
 
                 # Register chunk read, append the values to the data bytearray
                 for value in response.registers:
-                    data += int.to_bytes((value & 0xFF00) >> 8)
-                    data += int.to_bytes(value & 0xFF)
+                    data.extend(value.to_bytes(2, byteorder="big"))
 
                 # Update the register_start and register_count for the next chunk
                 register_start += reg_count
