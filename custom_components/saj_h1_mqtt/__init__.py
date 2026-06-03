@@ -60,11 +60,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
         raise ConfigEntryNotReady("MQTT integration not available")
 
     # Create hass data for our domain (to keep track of some data)
+    # When hass is not yet running (startup), we consider mqtt not ready (no birth message yet)
+    # When hass is already running (reload entry), we consider mqtt ready (birth message received in the past)
     if DOMAIN not in hass.data:
-        # When hass is not yet running (startup), we consider mqtt not ready (no birth message yet)
-        # When hass is already running (reload entry), we consider mqtt ready (birth message received in the past)
-        mqtt_ready = hass.is_running
-        hass.data.setdefault(DOMAIN, {MQTT_READY: mqtt_ready})
+        hass.data.setdefault(DOMAIN, {MQTT_READY: hass.is_running})
+    elif not hass.data[DOMAIN][MQTT_READY]:
+        hass.data[DOMAIN][MQTT_READY] = hass.is_running
 
     # Get config data
     serial_number: str = entry.data[CONF_SERIAL_NUMBER]
