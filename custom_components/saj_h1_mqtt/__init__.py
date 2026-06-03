@@ -14,8 +14,10 @@ from .client import SajH1Client, SajH1ModbusClient, SajH1MqttClient
 from .const import (
     CONF_ENABLE_MODBUS_DEBUG,
     CONF_ENABLE_MQTT_DEBUG,
+    CONF_MODBUS_DELAY,
     CONF_MODBUS_HOST,
     CONF_MODBUS_PORT,
+    CONF_MODBUS_WAIT,
     CONF_PROTOCOL,
     CONF_SCAN_INTERVAL_BATTERY_CONTROLLER_DATA,
     CONF_SCAN_INTERVAL_BATTERY_DATA,
@@ -77,6 +79,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
     modbus_host: str = entry.options.get(CONF_MODBUS_HOST, None)
     modbus_port: int = entry.options.get(CONF_MODBUS_PORT, DEFAULT_MODBUS_PORT)
     modbus_debug: bool = entry.options.get(CONF_ENABLE_MODBUS_DEBUG, False)
+    modbus_delay: float = entry.options.get(CONF_MODBUS_DELAY, 0.0)
+    modbus_wait: float = entry.options.get(CONF_MODBUS_WAIT, 0.0)
     mqtt_debug: bool = entry.options.get(CONF_ENABLE_MQTT_DEBUG, False)
     # Get optional data
     interval = entry.options.get(CONF_SCAN_INTERVAL_INVERTER_DATA, None)
@@ -107,9 +111,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
     # Setup client (default to mqtt)
     client: SajH1Client
     if protocol == PROTOCOL_MODBUS:
-        client = SajH1ModbusClient(hass, modbus_host, modbus_port, modbus_debug)
+        client = SajH1ModbusClient(
+            hass,
+            modbus_host,
+            modbus_port,
+            delay=modbus_delay,
+            wait=modbus_wait,
+            debug=modbus_debug,
+        )
     else:
-        client = SajH1MqttClient(hass, serial_number, mqtt_debug)
+        client = SajH1MqttClient(hass, serial_number, debug=mqtt_debug)
     await client.connect()
 
     # Setup coordinators

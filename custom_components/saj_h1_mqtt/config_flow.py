@@ -31,8 +31,10 @@ from .const import (
     CONF_ENABLE_MODBUS_DEBUG,
     CONF_ENABLE_MQTT_DEBUG,
     CONF_ENABLE_SERIAL_NUMBER_PREFIX,
+    CONF_MODBUS_DELAY,
     CONF_MODBUS_HOST,
     CONF_MODBUS_PORT,
+    CONF_MODBUS_WAIT,
     CONF_PROTOCOL,
     CONF_SCAN_INTERVAL_BATTERY_CONTROLLER_DATA,
     CONF_SCAN_INTERVAL_BATTERY_DATA,
@@ -96,6 +98,28 @@ MODBUS_CONFIG_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_MODBUS_HOST): cv.string,
         vol.Required(CONF_MODBUS_PORT, default=DEFAULT_MODBUS_PORT): cv.positive_int,
+        vol.Optional(
+            CONF_MODBUS_DELAY,
+            default=0.0,
+        ): NumberSelector(
+            NumberSelectorConfig(
+                min=0.0,
+                step=0.1,
+                mode=NumberSelectorMode.BOX,
+                unit_of_measurement="seconds",
+            )
+        ),
+        vol.Optional(
+            CONF_MODBUS_WAIT,
+            default=0.0,
+        ): NumberSelector(
+            NumberSelectorConfig(
+                min=0.0,
+                step=0.01,
+                mode=NumberSelectorMode.BOX,
+                unit_of_measurement="seconds",
+            )
+        ),
         vol.Optional(
             CONF_ENABLE_MODBUS_DEBUG,
             default=False,
@@ -261,6 +285,8 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                     CONF_ENABLE_SERIAL_NUMBER_PREFIX: self._enable_prefix,
                     CONF_MODBUS_HOST: user_input[CONF_MODBUS_HOST],
                     CONF_MODBUS_PORT: user_input[CONF_MODBUS_PORT],
+                    CONF_MODBUS_DELAY: user_input[CONF_MODBUS_DELAY],
+                    CONF_MODBUS_WAIT: user_input[CONF_MODBUS_WAIT],
                     CONF_ENABLE_MODBUS_DEBUG: user_input[CONF_ENABLE_MODBUS_DEBUG],
                 },
             )

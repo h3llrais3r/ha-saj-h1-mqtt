@@ -20,6 +20,8 @@
         "data": {
           "modbus_host": "Modbus host",
           "modbus_port": "Modbus port",
+          "modbus_delay": "Modbus delay time after connecting (0=disabled)",
+          "modbus_wait": "Modbus wait time between requests (0=disabled)",
           "enable_modbus_debug": "Enable modbus debugging"
         },
         "title": "SAJ H1 solar inverter modbus config"
@@ -63,6 +65,8 @@
         "data": {
           "modbus_host": "Modbus host",
           "modbus_port": "Modbus port",
+          "modbus_delay": "Modbus delay time after connecting (0=disabled)",
+          "modbus_wait": "Modbus wait time between requests (0=disabled)",
           "enable_modbus_debug": "Enable modbus debugging"
         },
         "title": "SAJ H1 solar inverter modbus options"

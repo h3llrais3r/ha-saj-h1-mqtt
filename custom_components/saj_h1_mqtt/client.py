@@ -86,14 +86,14 @@ class SajH1MqttClient(SajH1Client):
     """SAJ H1 MQTT client instance."""
 
     def __init__(
-        self, hass: HomeAssistant, serial_number: str, debug_mqtt: bool
+        self, hass: HomeAssistant, serial_number: str, debug: bool = False
     ) -> None:
         """Set up the SajH1MqttClient class."""
         super().__init__(hass)
 
         self.mqtt = mqtt
         self.serial_number = serial_number
-        self.debug_mqtt = debug_mqtt
+        self._debug = debug
         self.topic_data_transmission = (
             f"{BRAND.lower()}/{self.serial_number}/{MQTT_DATA_TRANSMISSION}"
         )
@@ -161,7 +161,7 @@ class SajH1MqttClient(SajH1Client):
                     self.read_responses[req_id] = None
                     debug(
                         f"Publishing packet with request id: {f'{log_hex(req_id)}'}",
-                        self.debug_mqtt,
+                        self._debug,
                     )
                     await self.mqtt.async_publish(
                         self.hass,
@@ -171,7 +171,7 @@ class SajH1MqttClient(SajH1Client):
                         retain=MQTT_RETAIN,
                         encoding=MQTT_ENCODING,
                     )
-                debug("All packets published", self.debug_mqtt)
+                debug("All packets published", self._debug)
 
                 # Wait for the answer packets
                 while True:
@@ -185,10 +185,10 @@ class SajH1MqttClient(SajH1Client):
                         break
                     debug(
                         f"Waiting for responses with request id: {[f'{log_hex(k)}' for k in req_ids if responses[k] is None]}",
-                        self.debug_mqtt,
+                        self._debug,
                     )
                     await asyncio.sleep(MQTT_WAIT_SLEEP_TIME)
-                debug("All responses received", self.debug_mqtt)
+                debug("All responses received", self._debug)
 
                 # Concatenate the payloads, so we get the full answer
                 data = bytearray()
@@ -229,7 +229,7 @@ class SajH1MqttClient(SajH1Client):
                 self.write_responses[req_id] = None
                 debug(
                     f"Publishing packet with request id: {f'{log_hex(req_id)}'}",
-                    self.debug_mqtt,
+                    self._debug,
                 )
                 await self.mqtt.async_publish(
                     self.hass,
@@ -247,10 +247,10 @@ class SajH1MqttClient(SajH1Client):
                         break
                     debug(
                         f"Waiting for response with request id: {f'{log_hex(req_id)}' if self.write_responses[req_id] is None else ''}",
-                        self.debug_mqtt,
+                        self._debug,
                     )
                     await asyncio.sleep(MQTT_WAIT_SLEEP_TIME)
-                debug("Response received", self.debug_mqtt)
+                debug("Response received", self._debug)
 
                 # Get the answer
                 data = self.write_responses[req_id]
@@ -292,7 +292,7 @@ class SajH1MqttClient(SajH1Client):
                 self.write_multiple_responses[req_id] = None
                 debug(
                     f"Publishing packet with request id: {f'{log_hex(req_id)}'}",
-                    self.debug_mqtt,
+                    self._debug,
                 )
                 await self.mqtt.async_publish(
                     self.hass,
@@ -310,10 +310,10 @@ class SajH1MqttClient(SajH1Client):
                         break
                     debug(
                         f"Waiting for response with request id: {f'{log_hex(req_id)}' if self.write_multiple_responses[req_id] is None else ''}",
-                        self.debug_mqtt,
+                        self._debug,
                     )
                     await asyncio.sleep(MQTT_WAIT_SLEEP_TIME)
-                debug("Response received", self.debug_mqtt)
+                debug("Response received", self._debug)
 
                 # Get the answer
                 data = self.write_multiple_responses[req_id]
@@ -363,7 +363,7 @@ class SajH1MqttClient(SajH1Client):
     def _handle_data_transmission_rsp(self, msg: ReceiveMessage) -> None:
         """Handle a mqtt data_transmission_rsp response packet."""
         try:
-            debug(f"Received {MQTT_DATA_TRANSMISSION_RSP} packet", self.debug_mqtt)
+            debug(f"Received {MQTT_DATA_TRANSMISSION_RSP} packet", self._debug)
             req_id, content = self._parse_packet(msg.payload)
             if req_id in self.read_responses:
                 self.read_responses[req_id] = content
@@ -372,7 +372,7 @@ class SajH1MqttClient(SajH1Client):
             elif req_id in self.write_multiple_responses:
                 self.write_multiple_responses[req_id] = content
             else:
-                debug("Response packet not expected, ignoring it", self.debug_mqtt)
+                debug("Response packet not expected, ignoring it", self._debug)
         except Exception as ex:  # noqa: BLE001
             LOGGER.error(
                 f"Error while handling {MQTT_DATA_TRANSMISSION_RSP} packet: {ex}"
@@ -391,14 +391,12 @@ class SajH1MqttClient(SajH1Client):
         )
         date = datetime.fromtimestamp(timestamp)
 
-        debug(
-            f"Response bytes: {':'.join(f'{b:02x}' for b in packet)}", self.debug_mqtt
-        )
-        debug(f"Request id: {log_hex(req_id)}", self.debug_mqtt)
-        debug(f"Device address: {log_hex(device_address)}", self.debug_mqtt)
-        debug(f"Request type: {log_hex(req_type)}", self.debug_mqtt)
-        debug(f"Length: {length} bytes", self.debug_mqtt)
-        debug(f"Timestamp: {date}", self.debug_mqtt)
+        debug(f"Response bytes: {':'.join(f'{b:02x}' for b in packet)}", self._debug)
+        debug(f"Request id: {log_hex(req_id)}", self._debug)
+        debug(f"Device address: {log_hex(device_address)}", self._debug)
+        debug(f"Request type: {log_hex(req_type)}", self._debug)
+        debug(f"Length: {length} bytes", self._debug)
+        debug(f"Timestamp: {date}", self._debug)
 
         if req_type == MODBUS_READ_REQUEST:
             content = self._parse_read_packet(packet)
@@ -438,13 +436,11 @@ class SajH1MqttClient(SajH1Client):
         # CRC is calculated starting from "request" at offset 0x3a
         calc_crc = computeCRC(packet[0x8 : 0xB + size])
 
-        debug(f"Content length: {size} bytes", self.debug_mqtt)
-        debug(
-            f"Content bytes: {':'.join(f'{b:02x}' for b in content)}", self.debug_mqtt
-        )
+        debug(f"Content length: {size} bytes", self._debug)
+        debug(f"Content bytes: {':'.join(f'{b:02x}' for b in content)}", self._debug)
         debug(
             f"CRC: {log_hex(crc)} -> {'ok' if crc == calc_crc else 'bad'}",
-            self.debug_mqtt,
+            self._debug,
         )
 
         if crc != calc_crc:
@@ -468,11 +464,11 @@ class SajH1MqttClient(SajH1Client):
         # CRC is calculated starting from "request" at offset 0x3a
         calc_crc = computeCRC(packet[0x8:0xE])
 
-        debug(f"Written register: {log_hex(register)}", self.debug_mqtt)
-        debug(f"Written value: {log_hex(value)}", self.debug_mqtt)
+        debug(f"Written register: {log_hex(register)}", self._debug)
+        debug(f"Written value: {log_hex(value)}", self._debug)
         debug(
             f"CRC: {log_hex(crc)} -> {'ok' if crc == calc_crc else 'bad'}",
-            self.debug_mqtt,
+            self._debug,
         )
 
         if crc != calc_crc:
@@ -496,11 +492,11 @@ class SajH1MqttClient(SajH1Client):
         # CRC is calculated starting from "request" at offset 0x3a
         calc_crc = computeCRC(packet[0x8:0xE])
 
-        debug(f"First register written: {log_hex(register_start)}", self.debug_mqtt)
-        debug(f"Number of registers written: {log_hex(count)}", self.debug_mqtt)
+        debug(f"First register written: {log_hex(register_start)}", self._debug)
+        debug(f"Number of registers written: {log_hex(count)}", self._debug)
         debug(
             f"CRC: {log_hex(crc)} -> {'ok' if crc == calc_crc else 'bad'}",
-            self.debug_mqtt,
+            self._debug,
         )
 
         if crc != calc_crc:
@@ -523,10 +519,10 @@ class SajH1MqttClient(SajH1Client):
         # CRC is calculated starting from "request" at offset 0x3a
         calc_crc = computeCRC(packet[0x8:0xE])
 
-        debug(f"Error code: {log_hex(error_code)}", self.debug_mqtt)
+        debug(f"Error code: {log_hex(error_code)}", self._debug)
         debug(
             f"CRC: {log_hex(crc)} -> {'ok' if crc == calc_crc else 'bad'}",
-            self.debug_mqtt,
+            self._debug,
         )
 
         if crc != calc_crc:
@@ -547,7 +543,7 @@ class SajH1MqttClient(SajH1Client):
         - [CONTENT] consists of [DEVICE_ADDRESS][REQ_TYPE][REGISTER_START][COUNT]
         - [CRC] checksum
         """
-        debug("Creating mqtt read packet", self.debug_mqtt)
+        debug("Creating mqtt read packet", self._debug)
         content = pack(
             ">BBHH", MODBUS_DEVICE_ADDRESS, MODBUS_READ_REQUEST, register_start, count
         )
@@ -565,7 +561,7 @@ class SajH1MqttClient(SajH1Client):
         - [CONTENT] consists of [DEVICE_ADDRESS][REQ_TYPE][REGISTER][VALUE]
         - [CRC] checksum
         """
-        debug("Creating mqtt write packet", self.debug_mqtt)
+        debug("Creating mqtt write packet", self._debug)
         content = pack(
             ">BBHH", MODBUS_DEVICE_ADDRESS, MODBUS_WRITE_REQUEST, register, value
         )
@@ -585,7 +581,7 @@ class SajH1MqttClient(SajH1Client):
         - [CONTENT] consists of [DEVICE_ADDRESS][REQ_TYPE][REGISTER_START][COUNT][SIZE][VALUES]
         - [CRC] checksum
         """
-        debug("Creating mqtt write multiple packet", self.debug_mqtt)
+        debug("Creating mqtt write multiple packet", self._debug)
         count = len(values)
         size = count * 2  # size in bytes (2 bytes per register)
         content = pack(
@@ -617,15 +613,15 @@ class SajH1MqttClient(SajH1Client):
         rand = int(random() * 65536)
         packet = pack(">HBBH", req_id, 0x58, 0xC9, rand) + content + pack(">H", crc)
 
-        debug(f"Request id: {log_hex(req_id)}", self.debug_mqtt)
-        debug(f"Request type: {log_hex(req_type)}", self.debug_mqtt)
-        debug(f"CRC: {log_hex(crc)}", self.debug_mqtt)
-        debug(f"Request length: {len(packet)} bytes", self.debug_mqtt)
-        debug(f"Request bytes: {':'.join(f'{b:02x}' for b in packet)}", self.debug_mqtt)
+        debug(f"Request id: {log_hex(req_id)}", self._debug)
+        debug(f"Request type: {log_hex(req_type)}", self._debug)
+        debug(f"CRC: {log_hex(crc)}", self._debug)
+        debug(f"Request length: {len(packet)} bytes", self._debug)
+        debug(f"Request bytes: {':'.join(f'{b:02x}' for b in packet)}", self._debug)
 
         packet = pack(">H", len(packet)) + packet
 
-        debug(f"Final packet: {':'.join(f'{b:02x}' for b in packet)}", self.debug_mqtt)
+        debug(f"Final packet: {':'.join(f'{b:02x}' for b in packet)}", self._debug)
 
         return packet, req_id
 
@@ -634,14 +630,22 @@ class SajH1ModbusClient(SajH1Client):
     """SAJ H1 modbus client."""
 
     def __init__(
-        self, hass: HomeAssistant, host: str, port: int, debug_modbus: bool
+        self,
+        hass: HomeAssistant,
+        host: str,
+        port: int,
+        delay: float = 0,
+        wait: float = 0,
+        debug: bool = False,
     ) -> None:
         """Set up the SajH1ModbusClient class."""
         super().__init__(hass)
 
         self.host = host
         self.port = port
-        self.debug_modbus = debug_modbus
+        self._delay = delay
+        self._wait = wait
+        self._debug = debug
         self._client = None
         self._lock = asyncio.Lock()
 
@@ -650,16 +654,32 @@ class SajH1ModbusClient(SajH1Client):
         self._client = AsyncModbusTcpClient(
             host=self.host, port=self.port, timeout=MODBUS_TIMEOUT
         )
-        await self._client.connect()
-        debug(f"Connected to modbus at {self.host}:{self.port}")
+        try:
+            if await self._client.connect():
+                debug(f"Connected to modbus at {self.host}:{self.port}")
+                # Small delay after connecting
+                if self._delay:
+                    await asyncio.sleep(self._delay)
+            else:
+                self._client = None
+                raise ConnectionError(
+                    f"Failed to connect to modbus at {self.host}:{self.port}"
+                )
+        except ModbusException as ex:
+            self._client = None
+            raise ConnectionError(
+                f"Failed to connect to modbus at {self.host}:{self.port}"
+            ) from ex
 
     async def disconnect(self) -> None:
         """Disconnect from modbus."""
-        async with self._lock:
-            if self._client:
+        if self._client:
+            try:
                 self._client.close()
-                self._client = None
                 debug(f"Disconnected from modbus at {self.host}:{self.port}")
+            except ModbusException as ex:
+                LOGGER.error(f"Failed to disconnect from modbus: {ex}")
+            self._client = None
 
     async def read_registers(
         self,
@@ -675,11 +695,11 @@ class SajH1ModbusClient(SajH1Client):
         You can also specify the register_chunks, so you can group the registers that belong together.
         It returns None in case data could not be retrieved.
         """
-        debug(
-            f"Reading registers at {log_hex(register_start)}, length: {log_hex(register_count)}"
-        )
-
         async with self._lock:
+            debug(
+                f"Reading registers at {log_hex(register_start)}, length: {log_hex(register_count)}"
+            )
+
             data = bytearray()
             chunk_idx = 0
             while register_count > 0:
@@ -702,19 +722,19 @@ class SajH1ModbusClient(SajH1Client):
                             count=reg_count,
                             device_id=MODBUS_DEVICE_ADDRESS,
                         )
-                        debug(f"Modbus response: {response}", self.debug_modbus)
+                        debug(f"Modbus response: {response}", self._debug)
                         if not response.isError():
                             break
 
                         debug(
                             f"Modbus error: {response.exception_code}, attempt {attempt + 1}/{MODBUS_RETRY_COUNT}",
-                            self.debug_modbus,
+                            self._debug,
                         )
 
                     except ModbusException as ex:
                         debug(
                             f"Modbus exception: {ex}, attempt {attempt + 1}/{MODBUS_RETRY_COUNT}",
-                            self.debug_modbus,
+                            self._debug,
                         )
 
                     await asyncio.sleep(MODBUS_RETRY_DELAY)
@@ -733,19 +753,23 @@ class SajH1ModbusClient(SajH1Client):
                 register_start += reg_count
                 register_count -= reg_count
 
+            # Small wait until next request/response
+            if self._wait:
+                await asyncio.sleep(self._wait)
+
             return data
 
     async def write_register(self, register: int, value: int) -> int | None:
         """Write a register value to the inverter."""
-        debug(f"Writing register at {log_hex(register)}, value: {log_hex(value)}")
-
         async with self._lock:
+            debug(f"Writing register at {log_hex(register)}, value: {log_hex(value)}")
+
             data: int | None = None
             try:
                 response = await self._client.write_register(
                     address=register, value=value, device_id=MODBUS_DEVICE_ADDRESS
                 )
-                debug(f"Modbus response: {response}", self.debug_modbus)
+                debug(f"Modbus response: {response}", self._debug)
                 if response.isError():
                     LOGGER.error(
                         f"Failed to write register at {log_hex(register)}: modbus error {response.exception_code}"
@@ -758,19 +782,23 @@ class SajH1ModbusClient(SajH1Client):
                 LOGGER.error(f"Modbus exception: {ex}")
                 data = None
 
+            # Small delay until next request/response
+            if self._wait:
+                await asyncio.sleep(self._wait)
+
             return data
 
     async def write_registers(
         self, register_start: int, values: list[int]
     ) -> int | None:
         """Write multiple register values to the inverter."""
-        count = len(values)
-        hex_values = ", ".join(log_hex(v) for v in values)
-        debug(
-            f"Writing register(s) at {log_hex(register_start)}, length: {log_hex(count)}, values: {hex_values}"
-        )
-
         async with self._lock:
+            count = len(values)
+            hex_values = ", ".join(log_hex(v) for v in values)
+            debug(
+                f"Writing register(s) at {log_hex(register_start)}, length: {log_hex(count)}, values: {hex_values}"
+            )
+
             data: int | None = None
             try:
                 response = await self._client.write_registers(
@@ -778,7 +806,7 @@ class SajH1ModbusClient(SajH1Client):
                     values=values,
                     device_id=MODBUS_DEVICE_ADDRESS,
                 )
-                debug(f"Modbus response: {response}", self.debug_modbus)
+                debug(f"Modbus response: {response}", self._debug)
                 if response.isError():
                     LOGGER.error(
                         f"Failed to write registers at {log_hex(register_start)}: modbus error {response.exception_code}"
@@ -790,5 +818,9 @@ class SajH1ModbusClient(SajH1Client):
             except ModbusException as ex:
                 LOGGER.error(f"Modbus exception: {ex}")
                 data = None
+
+            # Small delay until next request/response
+            if self._wait:
+                await asyncio.sleep(self._wait)
 
             return data

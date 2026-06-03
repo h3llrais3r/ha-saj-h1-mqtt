@@ -26,6 +26,8 @@ CONF_ENABLE_MQTT_DEBUG = "enable_mqtt_debug"
 CONF_PROTOCOL = "protocol"
 CONF_MODBUS_HOST = "modbus_host"
 CONF_MODBUS_PORT = "modbus_port"
+CONF_MODBUS_DELAY = "modbus_delay"
+CONF_MODBUS_WAIT = "modbus_wait"
 
 # Service constants
 SERVICE_READ_REGISTER = "read_register"
