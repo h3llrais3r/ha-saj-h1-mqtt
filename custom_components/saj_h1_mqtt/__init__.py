@@ -56,10 +56,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) -> bool:
     """Set up a config entry."""
-    # Make sure MQTT integration is enabled and the client is available
-    if not await mqtt.async_wait_for_mqtt_client(hass):
-        LOGGER.error("MQTT integration is not available")
-        raise ConfigEntryNotReady("MQTT integration not available")
 
     # Create hass data for our domain (to keep track of some data)
     # When hass is not yet running (startup), we consider mqtt not ready (no birth message yet)
@@ -75,6 +71,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
     scan_interval_realtime_data = timedelta(
         seconds=entry.options[CONF_SCAN_INTERVAL_REALTIME_DATA]
     )
+
+    # If protocol is mqtt, check if mqtt integration is available
+    if protocol == PROTOCOL_MQTT and not await mqtt.async_wait_for_mqtt_client(hass):
+        LOGGER.error("MQTT integration is not available")
+        raise ConfigEntryNotReady("MQTT integration not available")
+
     # Get protocol config data
     modbus_host: str = entry.options.get(CONF_MODBUS_HOST, None)
     modbus_port: int = entry.options.get(CONF_MODBUS_PORT, DEFAULT_MODBUS_PORT)
@@ -82,7 +84,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
     modbus_delay: float = entry.options.get(CONF_MODBUS_DELAY, 0.0)
     modbus_wait: float = entry.options.get(CONF_MODBUS_WAIT, 0.0)
     mqtt_debug: bool = entry.options.get(CONF_ENABLE_MQTT_DEBUG, False)
-    # Get optional data
+
+    # Get optional config data
     interval = entry.options.get(CONF_SCAN_INTERVAL_INVERTER_DATA, None)
     scan_interval_inverter_data = timedelta(seconds=interval) if interval else None
     interval = entry.options.get(CONF_SCAN_INTERVAL_BATTERY_DATA, None)
@@ -94,6 +97,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
     interval = entry.options.get(CONF_SCAN_INTERVAL_CONFIG_DATA, None)
     scan_interval_config_data = timedelta(seconds=interval) if interval else None
 
+    # Log config data
     LOGGER.info(f"Setting up SAJ H1 inverter with serial: {serial_number}")
     LOGGER.info(f"Using protocol: {protocol}")
     LOGGER.info(f"Scan interval realtime data: {scan_interval_realtime_data}")
@@ -117,10 +121,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
             modbus_port,
             delay=modbus_delay,
             wait=modbus_wait,
-            debug=modbus_debug,
+            modbus_debug=modbus_debug,
         )
     else:
-        client = SajH1MqttClient(hass, serial_number, debug=mqtt_debug)
+        client = SajH1MqttClient(hass, serial_number, mqtt_debug=mqtt_debug)
     await client.connect()
 
     # Setup coordinators

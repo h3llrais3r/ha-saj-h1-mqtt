@@ -86,14 +86,14 @@ class SajH1MqttClient(SajH1Client):
     """SAJ H1 MQTT client instance."""
 
     def __init__(
-        self, hass: HomeAssistant, serial_number: str, debug: bool = False
+        self, hass: HomeAssistant, serial_number: str, mqtt_debug: bool = False
     ) -> None:
         """Set up the SajH1MqttClient class."""
         super().__init__(hass)
 
         self.mqtt = mqtt
         self.serial_number = serial_number
-        self._debug = debug
+        self._debug = mqtt_debug
         self.topic_data_transmission = (
             f"{BRAND.lower()}/{self.serial_number}/{MQTT_DATA_TRANSMISSION}"
         )
@@ -636,7 +636,7 @@ class SajH1ModbusClient(SajH1Client):
         port: int,
         delay: float = 0,
         wait: float = 0,
-        debug: bool = False,
+        modbus_debug: bool = False,
     ) -> None:
         """Set up the SajH1ModbusClient class."""
         super().__init__(hass)
@@ -645,7 +645,7 @@ class SajH1ModbusClient(SajH1Client):
         self.port = port
         self._delay = delay
         self._wait = wait
-        self._debug = debug
+        self._debug = modbus_debug
         self._client = None
         self._lock = asyncio.Lock()
 
