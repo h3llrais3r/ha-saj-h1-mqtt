@@ -4,15 +4,26 @@ Home Assistant integration for SAJ H1 solar inverters. \
 This custom integration provides MQTT integration for SAJ H1 solar inverters. \
 This is an fork from [saj-mqtt-ha](https://github.com/paolosabatino/saj-mqtt-ha) with GUI setup and extra functionality.
 
+**NEW FUNCTIONALITY:** As of release `2.0.0` also `Modbus` integration is supported for SAJ H1 solar inverters.
+
+**ATTENTION:** Be aware that certain wifi dongle (AIO3) firmwares have an unstable connection when using `Modbus` as protocol. \
+If you face frequent modbus errors, you might be in this situation. \
+In this case, the advised way is using the `MQTT` protocol. \
+See discussion [here](https://github.com/h3llrais3r/ha-saj-h1-mqtt/discussions/4).
+
 **DISCLAIMER:** I won't be responsible for any kind of loss during it usage, the integration is provided AS-IS.
 
 ## Configure Home Assistant MQTT broker
+
+**REMARK:** You can skip this step if you want to use `Modbus` as protocol for this integration.
 
 This integration uses the MQTT services already configured in Home Assistant to communicate with the inverter and retrieve the data. \
 For this reason you need to first setup a broker and configure Home Assistant to talk to using the standard MQTT integration. \
 Of course, if you already have MQTT configured, you don't need to do this again.
 
 ## Configure the inverter
+
+**REMARK:** You can skip this step if you want to use `Modbus` as protocol for this integration.
 
 The last step is to configure the inverter (actually the Wifi communication module AIO3 attached to the inverter) to talk with the local MQTT broker and not directly with the SAJ broker. \
 To do that, you have 3 options:
@@ -41,8 +52,18 @@ To do that, you have 3 options:
 
 - Go to Configuration -> Integrations and add "SAJ H1 solar inverter (MQTT)" integration
 - Provide the serial number of your inverter
+- Select the protocol you want to use: `MQTT` or `Modbus`
 - Specify the realtime data scan interval
 - Optionally, if you would have multiple inverters, you can include the serial number in the sensor sames
+- Click submit to configure protocol specific settings
+    - For `MQTT`
+        - enable/disable debugging (optional, default `disabled`)
+    - For `Modbus`
+        - Provide modbus host (required, ip address of your inverter)
+        - Provide modbus port (required, default `502`)
+        - Provide optional modbus delay time after initial connect (optional, default `0`)
+        - provide optional modbus wait time between requests (optional, default `0`)
+        - enable/disable debugging (optional, default `disabled`)
 - Click submit to enable the integration
 - Optionally, you can configure the integration again to:
     - include additional data:
@@ -51,7 +72,6 @@ To do that, you have 3 options:
         - battery controller data
         - config data
     - enable accurate realtime power data (as SAJ tries to hide minimal grid import/export from the realtime data)
-    - enable mqqt debugging (for debugging purposes)
 
 ## HA services
 
