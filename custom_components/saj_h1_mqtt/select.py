@@ -11,7 +11,15 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import LOGGER, MODBUS_REG_APP_MODE, AppMode
+from .const import (
+    COORDINATOR_CONFIG_DATA,
+    COORDINATOR_OPERATIONAL_CONFIG_DATA,
+    LOGGER,
+    MODBUS_REG_APP_MODE,
+    MODBUS_REG_PASSIVE_MODE,
+    AppMode,
+    PassiveMode,
+)
 from .coordinator import SajH1MqttDataCoordinator
 from .entity import SajH1MqttEntity, SajH1MqttEntityDescription
 from .types import SajH1MqttConfigEntry
@@ -25,6 +33,7 @@ class SajH1MqttSelectEntityDescription(
 
     modbus_register: int
     modbus_value_fn: Callable[[int | float | str | None], int]
+    coordinator_name: str
 
 
 SELECT_ENTITY_DESCRIPTIONS: tuple[SajH1MqttSelectEntityDescription, ...] = (
@@ -39,6 +48,20 @@ SELECT_ENTITY_DESCRIPTIONS: tuple[SajH1MqttSelectEntityDescription, ...] = (
         value_fn=lambda x: AppMode(x).name,
         modbus_register=MODBUS_REG_APP_MODE,
         modbus_value_fn=lambda x: AppMode[str(x)].value,  # from name to value
+        coordinator_name=COORDINATOR_CONFIG_DATA,
+    ),
+    SajH1MqttSelectEntityDescription(
+        key="passive_mode",
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=True,
+        options=[x.name for x in PassiveMode],
+        modbus_register_offset=100,
+        modbus_register_data_type=">H",
+        modbus_register_scale=None,
+        value_fn=lambda x: PassiveMode(x).name,
+        modbus_register=MODBUS_REG_PASSIVE_MODE,
+        modbus_value_fn=lambda x: PassiveMode[str(x)].value,  # from name to value
+        coordinator_name=COORDINATOR_OPERATIONAL_CONFIG_DATA,
     ),
 )
 
@@ -49,16 +72,30 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the select entities based on a config entry."""
-    # Only set up select entities when config data coordinator is enabled
+    # Only set up select entities when config data coordinators are enabled
     coordinator_config_data = entry.runtime_data.coordinator_config_data
-    if not coordinator_config_data:
+    coordinator_operational_config_data = (
+        entry.runtime_data.coordinator_operational_config_data
+    )
+    if not coordinator_config_data and not coordinator_operational_config_data:
         return
 
     entities: list[SajH1MqttEntity] = []
 
-    # Add all number entities
+    # Add all select entities (use the right coordinator based on the entity description)
     for description in SELECT_ENTITY_DESCRIPTIONS:
-        entity = SajH1MqttSelectEntity(coordinator_config_data, description)
+        entity: SajH1MqttSelectEntity | None = None
+        if description.coordinator_name == COORDINATOR_CONFIG_DATA:
+            entity = SajH1MqttSelectEntity(coordinator_config_data, description)
+        elif description.coordinator_name == COORDINATOR_OPERATIONAL_CONFIG_DATA:
+            entity = SajH1MqttSelectEntity(
+                coordinator_operational_config_data, description
+            )
+        else:
+            LOGGER.error(
+                f"Unknown coordinator name {description.coordinator_name} for select entity {description.key}"
+            )
+            continue
         entities.append(entity)
 
     # Add the entities
