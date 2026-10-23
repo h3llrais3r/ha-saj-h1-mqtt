@@ -27,6 +27,9 @@ class SajH1MqttData:
         SajH1MqttBatteryControllerDataCoordinator | None
     )
     coordinator_config_data: SajH1MqttConfigDataCoordinator | None
+    coordinator_operational_config_data: (
+        SajH1MqttOperationalConfigDataCoordinator | None
+    )
 
     def mark_coordinators_ready(self) -> None:
         """Mark all coordinators ready."""
@@ -39,6 +42,8 @@ class SajH1MqttData:
             self.coordinator_battery_controller_data.ready = True
         if self.coordinator_config_data:
             self.coordinator_config_data.ready = True
+        if self.coordinator_operational_config_data:
+            self.coordinator_operational_config_data.ready = True
 
     async def async_refresh_coordinators(self) -> None:
         """Refresh all coordinators."""
@@ -51,6 +56,8 @@ class SajH1MqttData:
             await self.coordinator_battery_controller_data.async_refresh()
         if self.coordinator_config_data:
             await self.coordinator_config_data.async_refresh()
+        if self.coordinator_operational_config_data:
+            await self.coordinator_operational_config_data.async_refresh()
 
     async def async_first_refresh(self) -> None:
         """Trigger first refresh for all coordinators."""
@@ -162,5 +169,18 @@ class SajH1MqttConfigDataCoordinator(SajH1MqttDataCoordinator):
         reg_count = 0x2E  # 46 registers
         LOGGER.debug(
             f"Fetching config data at {log_hex(reg_start)}, length: {log_hex(reg_count)}"
+        )
+        return await self.client.read_registers(reg_start, reg_count)
+
+
+class SajH1MqttOperationalConfigDataCoordinator(SajH1MqttDataCoordinator):
+    """SAJ H1 MQTT operational config data coordinator."""
+
+    async def _async_fetch_data(self) -> bytearray | None:
+        """Fetch the operational config data."""
+        reg_start = 0x3604
+        reg_count = 0x35  # 53 registers
+        LOGGER.debug(
+            f"Fetching operational config data at {log_hex(reg_start)}, length: {log_hex(reg_count)}"
         )
         return await self.client.read_registers(reg_start, reg_count)

@@ -177,12 +177,22 @@ async def refresh_battery_controller_data(call: ServiceCall) -> None:
 
 
 async def refresh_config_data(call: ServiceCall) -> None:
-    """Refresh config data."""
+    """Refresh config data.
+
+    Config data has 2 sets of data:
+    1. Config data (32xx registers)
+    2. Operational config data (36xx registers)
+    """
     # Only refresh when coordinator is enabled
     entry = _get_config_entry(call.hass, call.data.get(ATTR_CONFIG_ENTRY))
     coordinator = entry.runtime_data.coordinator_config_data
     if coordinator:
         LOGGER.debug("Refreshing config data")
+        await coordinator.async_request_refresh()
+
+    coordinator = entry.runtime_data.coordinator_operational_config_data
+    if coordinator:
+        LOGGER.debug("Refreshing operational config data")
         await coordinator.async_request_refresh()
 
 

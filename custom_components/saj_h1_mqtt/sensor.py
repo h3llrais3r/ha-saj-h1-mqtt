@@ -31,6 +31,7 @@ from .const import (
     AppMode,
     BatteryState,
     GridState,
+    PassiveMode,
     PVState,
     SystemLoadState,
     WorkingMode,
@@ -38,6 +39,11 @@ from .const import (
 from .coordinator import SajH1MqttDataCoordinator
 from .entity import SajH1MqttEntity, SajH1MqttEntityDescription, get_entity_description
 from .types import SajH1MqttConfigEntry
+from .utils import (
+    decode_charge_time_power_register,
+    decode_time_register,
+    decode_times_enabled_register,
+)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -416,6 +422,58 @@ SAJ_CONFIG_DATA_SENSOR_DESCRIPTIONS: tuple[SajH1MqttSensorEntityDescription, ...
     SajH1MqttSensorEntityDescription(key="battery_soc_low", entity_registry_enabled_default=True, device_class=SensorDeviceClass.BATTERY, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=PERCENTAGE, modbus_register_offset=90, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=None),
 )
 
+# operational config data sensors
+SAJ_OPERATIONAL_CONFIG_DATA_SENSOR_DESCRIPTIONS: tuple[SajH1MqttSensorEntityDescription, ...] = (
+    SajH1MqttSensorEntityDescription(key="charge_times_enabled", entity_registry_enabled_default=True, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=0, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_times_enabled_register),
+    SajH1MqttSensorEntityDescription(key="discharge_times_enabled", entity_registry_enabled_default=True, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=2, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_times_enabled_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_1_start", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=4, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_1_end", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=6, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_1_power", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=8, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_charge_time_power_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_2_start", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=10, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_2_end", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=12, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_2_power", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=14, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_charge_time_power_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_3_start", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=16, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_3_end", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=18, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_3_power", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=20, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_charge_time_power_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_4_start", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=22, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_4_end", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=24, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_4_power", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=26, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_charge_time_power_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_5_start", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=28, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_5_end", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=30, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_5_power", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=32, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_charge_time_power_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_6_start", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=34, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_6_end", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=36, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_6_power", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=38, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_charge_time_power_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_7_start", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=40, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_7_end", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=42, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="charge_time_7_power", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=44, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_charge_time_power_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_1_start", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=46, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_1_end", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=48, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_1_power", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=50, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_charge_time_power_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_2_start", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=52, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_2_end", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=54, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_2_power", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=56, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_charge_time_power_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_3_start", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=58, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_3_end", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=60, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_3_power", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=62, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_charge_time_power_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_4_start", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=64, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_4_end", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=66, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_4_power", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=68, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_charge_time_power_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_5_start", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=70, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_5_end", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=72, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_5_power", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=74, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_charge_time_power_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_6_start", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=76, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_6_end", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=78, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_6_power", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=80, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_charge_time_power_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_7_start", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=82, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_7_end", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=84, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_time_register),
+    SajH1MqttSensorEntityDescription(key="discharge_time_7_power", entity_registry_enabled_default=False, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=86, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=decode_charge_time_power_register),
+    SajH1MqttSensorEntityDescription(key="prevent_reverse_flow", entity_registry_enabled_default=True, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=98, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=None),
+    SajH1MqttSensorEntityDescription(key="passive_mode", entity_registry_enabled_default=True, device_class=None, state_class=None, native_unit_of_measurement=None, modbus_register_offset=100, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=lambda x: PassiveMode(x).name),
+    SajH1MqttSensorEntityDescription(key="passive_grid_charge_power", entity_registry_enabled_default=True, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfPower.WATT, modbus_register_offset=102, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=None),
+    SajH1MqttSensorEntityDescription(key="passive_grid_discharge_power", entity_registry_enabled_default=True, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, native_unit_of_measurement=UnitOfPower.WATT, modbus_register_offset=104, modbus_register_data_type=">H", modbus_register_scale=None, value_fn=None)
+)
+
 # fmt: on
 
 
@@ -440,6 +498,9 @@ async def async_setup_entry(
         entry.runtime_data.coordinator_battery_controller_data
     )
     coordinator_config_data = entry.runtime_data.coordinator_config_data
+    coordinator_operational_config_data = (
+        entry.runtime_data.coordinator_operational_config_data
+    )
 
     # Realtime data sensors
     for description in SAJ_REALTIME_DATA_SENSOR_DESCRIPTIONS:
@@ -580,6 +641,14 @@ async def async_setup_entry(
     if coordinator_config_data:
         for description in SAJ_CONFIG_DATA_SENSOR_DESCRIPTIONS:
             entity = SajH1MqttSensorEntity(coordinator_config_data, description)
+            entities.append(entity)
+
+    # Operational config data sensors
+    if coordinator_operational_config_data:
+        for description in SAJ_OPERATIONAL_CONFIG_DATA_SENSOR_DESCRIPTIONS:
+            entity = SajH1MqttSensorEntity(
+                coordinator_operational_config_data, description
+            )
             entities.append(entity)
 
     # Add the entities

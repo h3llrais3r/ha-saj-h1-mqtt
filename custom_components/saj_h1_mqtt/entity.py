@@ -76,6 +76,7 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
             f"{self._unique_id_prefix}_{description.key}_{self._entity_type}".lower()
         )
         self._attr_name = f"{self._name_prefix}_{description.key}".lower()
+        self._attr_entity_has_entity_name = True
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._serial_number)},
             name=f"{BRAND} {self._serial_number}",
@@ -84,7 +85,12 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
             serial_number=self._serial_number,
         )
 
-        LOGGER.debug(f"Setting up entity: {self.name}")
+        # TODO: migrate over to the new entity_id naming in a future release
+        # Force our legacy entity_id naming (using the name)
+        # The latest HA version uses their own naming and always adds the device name to the entity_id
+        self.entity_id = f"{self._entity_type}.{self._attr_name}".lower()
+
+        LOGGER.debug(f"Setting up entity: {self.entity_id}")
 
     def _custom_native_value(
         self, value: float | str | None
@@ -151,7 +157,7 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
             )
         else:
             # Used for internal entities (no entity_id)
-            LOGGER.debug(f"-> Internal entity: {self.name}, value: {value}")
+            LOGGER.debug(f"-> Internal entity: {self.entity_id}, value: {value}")
 
         return value
 

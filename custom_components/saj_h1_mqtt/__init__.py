@@ -25,6 +25,12 @@ from .const import (
     CONF_SCAN_INTERVAL_INVERTER_DATA,
     CONF_SCAN_INTERVAL_REALTIME_DATA,
     CONF_SERIAL_NUMBER,
+    COORDINATOR_BATTERY_CONTROLLER_DATA,
+    COORDINATOR_BATTERY_DATA,
+    COORDINATOR_CONFIG_DATA,
+    COORDINATOR_INVERTER_DATA,
+    COORDINATOR_OPERATIONAL_CONFIG_DATA,
+    COORDINATOR_REALTIME_DATA,
     DEFAULT_MODBUS_PORT,
     DOMAIN,
     LOGGER,
@@ -38,6 +44,7 @@ from .coordinator import (
     SajH1MqttConfigDataCoordinator,
     SajH1MqttData,
     SajH1MqttInverterDataCoordinator,
+    SajH1MqttOperationalConfigDataCoordinator,
     SajH1MqttRealtimeDataCoordinator,
 )
 from .services import async_setup_services
@@ -132,24 +139,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
 
     # Realtime data coordinator
     coordinator_realtime_data = SajH1MqttRealtimeDataCoordinator(
-        hass, entry, client, scan_interval_realtime_data, "realtime_data"
+        hass, entry, client, scan_interval_realtime_data, COORDINATOR_REALTIME_DATA
     )
 
-    # Inverter data coordinators
+    # Inverter data coordinator
     coordinator_inverter_data: SajH1MqttInverterDataCoordinator | None = None
     if scan_interval_inverter_data:
         coordinator_inverter_data = SajH1MqttInverterDataCoordinator(
-            hass, entry, client, scan_interval_inverter_data, "inverter_data"
+            hass, entry, client, scan_interval_inverter_data, COORDINATOR_INVERTER_DATA
         )
 
     # Battery data coordinator
     coordinator_battery_data: SajH1MqttBatteryDataCoordinator | None = None
     if scan_interval_battery_data:
         coordinator_battery_data = SajH1MqttBatteryDataCoordinator(
-            hass, entry, client, scan_interval_battery_data, "battery_data"
+            hass, entry, client, scan_interval_battery_data, COORDINATOR_BATTERY_DATA
         )
 
-    # Battery controller data coordinators
+    # Battery controller data coordinator
     coordinator_battery_controller_data: (
         SajH1MqttBatteryControllerDataCoordinator | None
     ) = None
@@ -159,14 +166,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
             entry,
             client,
             scan_interval_battery_controller_data,
-            "battery_controller_data",
+            COORDINATOR_BATTERY_CONTROLLER_DATA,
         )
 
-    # Config data coordinator
+    # Config data coordinators (2 coordinators: using the same scan interval)
+    # 1. Config data coordinator
+    # 2. Operational config data coordinator
     coordinator_config_data: SajH1MqttConfigDataCoordinator | None = None
+    coordinator_operational_config_data: (
+        SajH1MqttOperationalConfigDataCoordinator | None
+    ) = None
     if scan_interval_config_data:
         coordinator_config_data = SajH1MqttConfigDataCoordinator(
-            hass, entry, client, scan_interval_config_data, "config_data"
+            hass, entry, client, scan_interval_config_data, COORDINATOR_CONFIG_DATA
+        )
+        coordinator_operational_config_data = SajH1MqttOperationalConfigDataCoordinator(
+            hass,
+            entry,
+            client,
+            scan_interval_config_data,
+            COORDINATOR_OPERATIONAL_CONFIG_DATA,
         )
 
     # Entry runtime data
@@ -177,6 +196,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SajH1MqttConfigEntry) ->
         coordinator_battery_data=coordinator_battery_data,
         coordinator_battery_controller_data=coordinator_battery_controller_data,
         coordinator_config_data=coordinator_config_data,
+        coordinator_operational_config_data=coordinator_operational_config_data,
     )
 
     # Trigger first refresh

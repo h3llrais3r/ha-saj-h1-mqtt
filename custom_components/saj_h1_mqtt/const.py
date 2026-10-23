@@ -39,6 +39,14 @@ SERVICE_REFRESH_BATTERY_CONTROLLER_DATA = "refresh_battery_controller_data"
 SERVICE_REFRESH_CONFIG_DATA = "refresh_config_data"
 SERVICE_SYNC_INVERTER_TIME = "sync_inverter_time"
 
+# Coordinator constants
+COORDINATOR_REALTIME_DATA = "realtime_data"
+COORDINATOR_INVERTER_DATA = "inverter_data"
+COORDINATOR_BATTERY_DATA = "battery_data"
+COORDINATOR_BATTERY_CONTROLLER_DATA = "battery_controller_data"
+COORDINATOR_CONFIG_DATA = "config_data"
+COORDINATOR_OPERATIONAL_CONFIG_DATA = "operational_config_data"
+
 # Attribute constants
 ATTR_CONFIG_ENTRY = "config_entry"
 ATTR_REGISTER = "register"
@@ -72,6 +80,7 @@ MODBUS_REG_GRID_FEED_POWER_LIMIT = 0x3249
 MODBUS_REG_BATTERY_SOC_BACKUP = 0x3271
 MODBUS_REG_BATTERY_SOC_HIGH = 0x3273
 MODBUS_REG_BATTERY_SOC_LOW = 0x3274
+MODBUS_REG_PASSIVE_MODE = 0x3636
 MODBUS_REG_INVERTER_TIME_READ = 0x4000
 MODBUS_REG_INVERTER_TIME_WRITE = 0x8020
 
@@ -114,6 +123,14 @@ class AppMode(Enum):
     TIME_OF_USE = 1
     BACKUP = 2
     PASSIVE = 3
+
+
+class PassiveMode(Enum):
+    """Passive mode."""
+
+    STANDBY = 0
+    CHARGE = 1
+    DISCHARGE = 2
 
 
 class PVState(StrEnum):
