@@ -71,12 +71,14 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
             else f"{BRAND}_{MODEL_SHORT}"
         )
 
-        # Set entity attributes (use _entity_type in _attr_unique_id to support sensors with same key, but different type)
+        # Set entity attributes
+        # Use _entity_type in _attr_unique_id to support sensors with same key, but different type
         self._attr_unique_id = (
             f"{self._unique_id_prefix}_{description.key}_{self._entity_type}".lower()
         )
-        self._attr_name = f"{self._name_prefix}_{description.key}".lower()
-        self._attr_entity_has_entity_name = True
+        # Human readable name for the entity based on the key
+        self._attr_name = description.key.replace("_", " ").capitalize()
+        # Device info for the entity, used to group entities under a device
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._serial_number)},
             name=f"{BRAND} {self._serial_number}",
@@ -86,9 +88,10 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
         )
 
         # TODO: migrate over to the new entity_id naming in a future release
-        # Force our legacy entity_id naming (using the name)
+        # Force our legacy entity_id naming (using the name pattern)
         # The latest HA version uses their own naming and always adds the device name to the entity_id
-        self.entity_id = f"{self._entity_type}.{self._attr_name}".lower()
+        self._entity_name = f"{self._name_prefix}_{description.key}".lower()
+        self.entity_id = f"{self._entity_type}.{self._entity_name}".lower()
 
         LOGGER.debug(f"Setting up entity: {self.entity_id}")
 
