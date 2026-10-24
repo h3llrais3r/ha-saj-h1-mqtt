@@ -14,12 +14,16 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
+    COORDINATOR_CONFIG_DATA,
+    COORDINATOR_OPERATIONAL_CONFIG_DATA,
     LOGGER,
     MODBUS_REG_BATTERY_SOC_BACKUP,
     MODBUS_REG_BATTERY_SOC_HIGH,
     MODBUS_REG_BATTERY_SOC_LOW,
     MODBUS_REG_GRID_CHARGE_POWER_LIMIT,
     MODBUS_REG_GRID_FEED_POWER_LIMIT,
+    MODBUS_REG_PASSIVE_GRID_CHARGE_POWER,
+    MODBUS_REG_PASSIVE_GRID_DISCHARGE_POWER,
 )
 from .coordinator import SajH1MqttDataCoordinator
 from .entity import SajH1MqttEntity, SajH1MqttEntityDescription
@@ -33,6 +37,7 @@ class SajH1MqttNumberEntityDescription(
     """A class that describes SAJ H1 MQTT number entities."""
 
     modbus_register: int
+    coordinator_name: str
 
 
 NUMBER_ENTITY_DESCRIPTIONS: tuple[SajH1MqttNumberEntityDescription, ...] = (
@@ -50,6 +55,7 @@ NUMBER_ENTITY_DESCRIPTIONS: tuple[SajH1MqttNumberEntityDescription, ...] = (
         modbus_register_scale=None,
         value_fn=None,
         modbus_register=MODBUS_REG_GRID_CHARGE_POWER_LIMIT,
+        coordinator_name=COORDINATOR_CONFIG_DATA,
     ),
     SajH1MqttNumberEntityDescription(
         key="grid_feed_power_limit",
@@ -65,6 +71,7 @@ NUMBER_ENTITY_DESCRIPTIONS: tuple[SajH1MqttNumberEntityDescription, ...] = (
         modbus_register_scale=None,
         value_fn=None,
         modbus_register=MODBUS_REG_GRID_FEED_POWER_LIMIT,
+        coordinator_name=COORDINATOR_CONFIG_DATA,
     ),
     SajH1MqttNumberEntityDescription(
         key="battery_soc_backup",
@@ -80,6 +87,7 @@ NUMBER_ENTITY_DESCRIPTIONS: tuple[SajH1MqttNumberEntityDescription, ...] = (
         modbus_register_scale=None,
         value_fn=None,
         modbus_register=MODBUS_REG_BATTERY_SOC_BACKUP,
+        coordinator_name=COORDINATOR_CONFIG_DATA,
     ),
     SajH1MqttNumberEntityDescription(
         key="battery_soc_high",
@@ -95,6 +103,7 @@ NUMBER_ENTITY_DESCRIPTIONS: tuple[SajH1MqttNumberEntityDescription, ...] = (
         modbus_register_scale=None,
         value_fn=None,
         modbus_register=MODBUS_REG_BATTERY_SOC_HIGH,
+        coordinator_name=COORDINATOR_CONFIG_DATA,
     ),
     SajH1MqttNumberEntityDescription(
         key="battery_soc_low",
@@ -110,6 +119,39 @@ NUMBER_ENTITY_DESCRIPTIONS: tuple[SajH1MqttNumberEntityDescription, ...] = (
         modbus_register_scale=None,
         value_fn=None,
         modbus_register=MODBUS_REG_BATTERY_SOC_LOW,
+        coordinator_name=COORDINATOR_CONFIG_DATA,
+    ),
+    SajH1MqttNumberEntityDescription(
+        key="passive_grid_charge_power",
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=True,
+        device_class=NumberDeviceClass.POWER,
+        native_unit_of_measurement=UnitOfPower.WATT,
+        native_min_value=0,
+        native_max_value=5000,
+        native_step=100,
+        modbus_register_offset=102,
+        modbus_register_data_type=">H",
+        modbus_register_scale=None,
+        value_fn=None,
+        modbus_register=MODBUS_REG_PASSIVE_GRID_CHARGE_POWER,
+        coordinator_name=COORDINATOR_OPERATIONAL_CONFIG_DATA,
+    ),
+    SajH1MqttNumberEntityDescription(
+        key="passive_grid_discharge_power",
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=True,
+        device_class=NumberDeviceClass.POWER,
+        native_unit_of_measurement=UnitOfPower.WATT,
+        native_min_value=0,
+        native_max_value=5000,
+        native_step=100,
+        modbus_register_offset=104,
+        modbus_register_data_type=">H",
+        modbus_register_scale=None,
+        value_fn=None,
+        modbus_register=MODBUS_REG_PASSIVE_GRID_DISCHARGE_POWER,
+        coordinator_name=COORDINATOR_OPERATIONAL_CONFIG_DATA,
     ),
 )
 
@@ -120,16 +162,29 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the number entities based on a config entry."""
-    # Only set up number entities when config data coordinator is enabled
+    # Only set up number entities when config data coordinators are enabled
     coordinator_config_data = entry.runtime_data.coordinator_config_data
-    if not coordinator_config_data:
+    coordinator_operational_config_data = (
+        entry.runtime_data.coordinator_operational_config_data
+    )
+    if not coordinator_config_data and not coordinator_operational_config_data:
         return
 
     entities: list[SajH1MqttEntity] = []
 
     # Add all number entities
     for description in NUMBER_ENTITY_DESCRIPTIONS:
-        entity = SajH1MqttNumberEntity(coordinator_config_data, description)
+        if description.coordinator_name == COORDINATOR_CONFIG_DATA:
+            entity = SajH1MqttNumberEntity(coordinator_config_data, description)
+        elif description.coordinator_name == COORDINATOR_OPERATIONAL_CONFIG_DATA:
+            entity = SajH1MqttNumberEntity(
+                coordinator_operational_config_data, description
+            )
+        else:
+            LOGGER.error(
+                f"Unknown coordinator name {description.coordinator_name} for number entity {description.key}"
+            )
+            continue
         entities.append(entity)
 
     # Add the entities

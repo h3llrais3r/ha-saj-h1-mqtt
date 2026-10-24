@@ -149,7 +149,7 @@ class SajH1MqttEntity(CoordinatorEntity[SajH1MqttDataCoordinator], Entity, ABC):
 
         except Exception as e:  # noqa: BLE001
             LOGGER.error(
-                f"Unable to get native value for entity: {self.entity_id or self.name}",
+                f"Unable to get native value for entity: {self.entity_id}",
                 e,
             )
             return None
