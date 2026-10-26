@@ -128,11 +128,15 @@ class AppMode(Enum):
 
 
 class PassiveMode(Enum):
-    """Passive mode."""
+    """Passive mode.
+
+    REMARK: values for CHARGE and DISCHARGE are swapped
+    compared to the values in the SAJ H1 inverter documentation.
+    """
 
     STANDBY = 0
-    CHARGE = 1
-    DISCHARGE = 2
+    DISCHARGE = 1
+    CHARGE = 2
 
 
 class PVState(StrEnum):
